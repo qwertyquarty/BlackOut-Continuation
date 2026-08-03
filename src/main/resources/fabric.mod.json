@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "blackout",
+  "version": "${version}",
+  "name": "Blackout",
+  "description": "Meteor Client addon focusing on CrystalPVP.",
+  "authors": [
+    "KassuK",
+    "OLEPOSSU",
+    "H1ggsK",
+    "Crosby",
+    "Wide_Cat"
+  ],
+  "contact": {
+    "sources": "https://github.com/H1ggsK/BlackOut/",
+    "issues": "https://github.com/H1ggsK/BlackOut/issues"
+  },
+  "icon": "assets/blackout/logo.png",
+  "license": "GPL-3.0-or-later",
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "kassuk.addon.blackout.BlackOut"
+    ]
+  },
+  "mixins": [
+    "blackout.mixins.json"
+  ],
+  "accessWidener": "blackout.accesswidener",
+  "custom": {
+    "meteor-client:color": "225,25,25"
+  },
+  "depends": {
+    "java": "\u003e\u003d21",
+    "minecraft": "~1.21.11",
+    "meteor-client": "*",
+    "fabricloader": "\u003e\u003d0.19.2"
+  }
+}
