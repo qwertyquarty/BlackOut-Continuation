@@ -1,5 +1,9 @@
 name: Publish Development Build
+
 on: push
+
+permissions:
+  contents: write
 
 jobs:
   build:
