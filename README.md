@@ -1,8 +1,8 @@
 ![banner](https://raw.githubusercontent.com/HYPE115/BlackOut-1.21.11/main/src/main/resources/assets/blackout/logo.png)
 
-# BlackOut 1.21.11
+# BlackOut Continuation
 
-A community-maintained port of the original **BlackOut** addon for **Meteor Client**, updated for **Minecraft 1.21.11**.
+A community-maintained port of the original **BlackOut** addon for **Meteor Client**, updated for *Newer Minecraft Version**.
 
 This fork keeps BlackOut compatible with newer versions while preserving the original features and gameplay experience.
 
@@ -11,17 +11,16 @@ This fork keeps BlackOut compatible with newer versions while preserving the ori
 ## Features
 
 - Minecraft **1.21.11** support
-- Latest **Meteor Client** compatibility
-- Original BlackOut modules and HUD elements
+- Original BlackOut modules and HUD elements with some changes
 - Compatibility fixes and maintenance
 
 ---
 
 ## Installation
 
-1. Install **Fabric Loader** for **Minecraft 1.21.11**
+1. Install **Fabric Loader**
 2. Install a compatible version of **Meteor Client**
-3. Download the latest **BlackOut 1.21.11** release
+3. Download the latest **BlackOut** release
 4. Put the `.jar` files into your `mods` folder
 5. Launch Minecraft with the Fabric profile
 
