@@ -51,6 +51,7 @@ Based on the original **BlackOut** addon.
 * KassuK
 * Doogie13 (block mining calculations & step offsets)
 * RickyTheRaccoon (InvSwitch)
+* H1ggsK (some changes)
 
 **Porting:**
 

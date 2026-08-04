@@ -29,6 +29,7 @@ public class ArmorHudPlus extends HudElement {
         .sliderRange(0.1, 5)
         .build()
     );
+
     private final Setting<Integer> rounding = sgGeneral.add(new IntSetting.Builder()
         .name("Rounding")
         .description("How rounded should the background be.")

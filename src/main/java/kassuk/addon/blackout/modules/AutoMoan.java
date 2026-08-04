@@ -14,7 +14,10 @@ import java.util.Random;
 
 /**
  * @author KassuK
+ ** @author HYPE115
  */
+
+ // Replacing gay (all of them :\) thing by straight thing
 
 public class AutoMoan extends BlackOutModule {
 
@@ -26,10 +29,17 @@ public class AutoMoan extends BlackOutModule {
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
-    private final Setting<MoanMode> moanmode = sgGeneral.add(new EnumSetting.Builder<MoanMode>()
-        .name("Message Mode")
-        .description("What kind of messages to send.")
-        .defaultValue(MoanMode.Submissive)
+    private final Setting<ContentMode> contentMode = sgGeneral.add(new EnumSetting.Builder<ContentMode>()
+        .name("Content Mode")
+        .description("Choose between straight and gay message sets.")
+        .defaultValue(ContentMode.Straight)
+        .build()
+    );
+
+    private final Setting<MessageStyle> messageStyle = sgGeneral.add(new EnumSetting.Builder<MessageStyle>()
+        .name("Message Style")
+        .description("Choose between submissive and dominant wording.")
+        .defaultValue(MessageStyle.Submissive)
         .build()
     );
 
@@ -50,14 +60,57 @@ public class AutoMoan extends BlackOutModule {
 
     //Most haram module in Blackout
 
-    public enum MoanMode {
+    public enum ContentMode {
+        Straight,
+        Gay,
+    }
+
+    public enum MessageStyle {
         Dominant,
         Submissive,
     }
 
-    private int lastNum;
+// Moddified by HYPE115 for making straight mode
+
+    private int lastStraightSubmissiveIndex = -1;
+    private int lastStraightDominantIndex = -1;
+    private int lastGaySubmissiveIndex = -1;
+    private int lastGayDominantIndex = -1;
     private double timer = 0;
-    private static final String[] Submissive = new String[]{
+    private static final String[] StraightSubmissive = new String[]{
+        "Use me as your toy",
+        "Tell me what you want %s",
+        "Can I cum %s",
+        "I'm your slut",
+        "Please use me %s",
+        "I'm yours to command ",
+        "Keep talking, I love the sound of your voice",
+        "I need you to take control %s",
+        "I want your hands all over me %s",
+        "I'm all yours %s",
+        "Make me feel like I belong to you",
+        "I can't wait to feel you %s",
+        "i'm you're little thing",
+        "Feed me mommy",
+        "Do whatever you want with me",
+    };
+
+    private static final String[] StraightDominant = new String[]{
+        "Say my name when you do that",
+        "You know what I want, give it to me",
+        "Call me daddy",
+        "I love how you look right before I touch you",
+        "Take it off, all of it, now",
+        "Get on your knees",
+        "Beg for it",
+        "Look at me when you say it",
+        "You belong to me tonight",
+        "No more excuses, obey",
+        "I want you exactly where I need you",
+        "You don't get to leave until I say so"
+    };
+
+    private static final String[] GaySubmissive = new String[]{
         //please fucking end me
         "fuck me harder daddy",
         "deeper! daddy deeper!",
@@ -83,9 +136,10 @@ public class AutoMoan extends BlackOutModule {
         "%s really loves fucking my ass really hard!",
         //I just want to stop writing these, but I just feel like it's not finished yet
         "why wont u say the last message",
+        "Keep me close and never let go %s"
     };
 
-    private static final String[] Dominant = new String[]{
+    private static final String[] GayDominant = new String[]{
         //Oh god, why the fuck am I making this
         "Be a good boy for daddy",
         //If heaven is real im not getting there
@@ -116,6 +170,7 @@ public class AutoMoan extends BlackOutModule {
         //if anyone asks what I did during my vacation I can proudly tell them I wasted multiple hours writing things gay people can say during sex
         //The fact that I have said a few of these frightens me : SigmaClientWasTaken 2023 wtf sigma
     };
+
     private final Random r = new Random();
 
 
@@ -141,26 +196,68 @@ public class AutoMoan extends BlackOutModule {
         }
 
         String name = target.getName().getString();
-        switch (moanmode.get()) {
-            //Skidding AutoEz for this is harder than just making this fully myself but what I start I finish
-            case Submissive -> {
-                //it took me way too long to understand what this did I have braindamage :(
-                int num = r.nextInt(0, Submissive.length - 1);
-                if (num == lastNum) {
-                    num = num < Submissive.length - 1 ? num + 1 : 0;
+        ChatUtils.sendPlayerMsg(getRandomMessage(contentMode.get(), messageStyle.get(), name));
+    }
+
+    private String getRandomMessage(ContentMode contentMode, MessageStyle messageStyle, String targetName) {
+        String[] messages = getMessages(contentMode, messageStyle);
+        int nextIndex = getNextIndex(messages, getLastIndex(contentMode, messageStyle));
+        setLastIndex(contentMode, messageStyle, nextIndex);
+        return messages[nextIndex].replace("%s", targetName);
+    }
+
+    private String[] getMessages(ContentMode contentMode, MessageStyle messageStyle) {
+        return switch (contentMode) {
+            case Straight -> switch (messageStyle) {
+                case Submissive -> StraightSubmissive;
+                case Dominant -> StraightDominant;
+            };
+            case Gay -> switch (messageStyle) {
+                case Submissive -> GaySubmissive;
+                case Dominant -> GayDominant;
+            };
+        };
+    }
+
+    private int getNextIndex(String[] messages, int previousIndex) {
+        if (messages.length <= 1) {
+            return 0;
+        }
+
+        int nextIndex = r.nextInt(messages.length);
+        if (nextIndex == previousIndex) {
+            nextIndex = nextIndex < messages.length - 1 ? nextIndex + 1 : 0;
+        }
+
+        return nextIndex;
+    }
+
+    private int getLastIndex(ContentMode contentMode, MessageStyle messageStyle) {
+        return switch (contentMode) {
+            case Straight -> switch (messageStyle) {
+                case Submissive -> lastStraightSubmissiveIndex;
+                case Dominant -> lastStraightDominantIndex;
+            };
+            case Gay -> switch (messageStyle) {
+                case Submissive -> lastGaySubmissiveIndex;
+                case Dominant -> lastGayDominantIndex;
+            };
+        };
+    }
+
+    private void setLastIndex(ContentMode contentMode, MessageStyle messageStyle, int index) {
+        switch (contentMode) {
+            case Straight -> {
+                switch (messageStyle) {
+                    case Submissive -> lastStraightSubmissiveIndex = index;
+                    case Dominant -> lastStraightDominantIndex = index;
                 }
-                lastNum = num;
-                //the way i did the name is so ass bro pls fix this at one point
-                //please add the thing that prevents it from saying the same thing twice in a row
-                ChatUtils.sendPlayerMsg(Submissive[num].replace("%s", name));
             }
-            case Dominant -> {
-                int num = r.nextInt(0, Dominant.length - 1);
-                if (num == lastNum) {
-                    num = num < Dominant.length - 1 ? num + 1 : 0;
+            case Gay -> {
+                switch (messageStyle) {
+                    case Submissive -> lastGaySubmissiveIndex = index;
+                    case Dominant -> lastGayDominantIndex = index;
                 }
-                lastNum = num;
-                ChatUtils.sendPlayerMsg(Dominant[num].replace("%s", name));
             }
         }
     }

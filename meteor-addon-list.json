@@ -1,0 +1,19 @@
+{
+  "description": "Meteor Client addon focused on CrystalPVP utilities and combat helpers.",
+  "tags": [
+    "PvP",
+    "Utility",
+    "Combat",
+    "Automation",
+    "QoL"
+  ],
+  "supported_versions": ["1.21.11"],
+  "icon": "https://raw.githubusercontent.com/HYPE115/BlackOut-Continuation/1.21.11/src/main/resources/assets/blackout/logo.png",
+  "homepage": "https://github.com/HYPE115/BlackOut-Continuation",
+  "discord": "",
+  "feature_directories": {
+    "modules": ["modules"],
+    "commands": ["commands"],
+    "hud_elements": ["hud"]
+  }
+}
