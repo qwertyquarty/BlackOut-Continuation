@@ -31,8 +31,8 @@ public class AutoMoan extends BlackOutModule {
 
     private final Setting<ContentMode> contentMode = sgGeneral.add(new EnumSetting.Builder<ContentMode>()
         .name("Content Mode")
-        .description("Choose between straight and gay message sets.")
-        .defaultValue(ContentMode.Straight)
+        .description("Choose between straight, gay, and universal message sets.")
+        .defaultValue(ContentMode.Universal)
         .build()
     );
 
@@ -49,6 +49,28 @@ public class AutoMoan extends BlackOutModule {
         .defaultValue(true)
         .build()
     );
+
+    private final Setting<String> targetUsername = sgGeneral.add(new StringSetting.Builder()
+        .name("Target username")
+        .description("Target a specific player by username. Leave empty to use the closest player.")
+        .defaultValue("")
+        .build()
+    );
+
+    private final Setting<Boolean> sendInPm = sgGeneral.add(new BoolSetting.Builder()
+        .name("Send messages in PM")
+        .description("Sends the generated messages as private messages instead of public chat.")
+        .defaultValue(false)
+        .build()
+    );
+
+    private final Setting<String> privateMessageCommand = sgGeneral.add(new StringSetting.Builder()
+        .name("Private message command")
+        .description("Command used to send private messages. Use %s for the target player name.")
+        .defaultValue("/message %s")
+        .build()
+    );
+
     private final Setting<Double> delay = sgGeneral.add(new DoubleSetting.Builder()
         .name("Delay")
         .description("Tick delay between moans.")
@@ -63,6 +85,7 @@ public class AutoMoan extends BlackOutModule {
     public enum ContentMode {
         Straight,
         Gay,
+        Universal,
     }
 
     public enum MessageStyle {
@@ -70,44 +93,42 @@ public class AutoMoan extends BlackOutModule {
         Submissive,
     }
 
-// Moddified by HYPE115 for making straight mode
+// Moddified by HYPE115 for making straight mode and messages option
 
     private int lastStraightSubmissiveIndex = -1;
     private int lastStraightDominantIndex = -1;
     private int lastGaySubmissiveIndex = -1;
     private int lastGayDominantIndex = -1;
+    private int lastUniversalSubmissiveIndex = -1;
+    private int lastUniversalDominantIndex = -1;
     private double timer = 0;
     private static final String[] StraightSubmissive = new String[]{
-        "Use me as your toy",
-        "Tell me what you want %s",
         "Can I cum %s",
         "I'm your slut",
-        "Please use me %s",
-        "I'm yours to command ",
-        "Keep talking, I love the sound of your voice",
-        "I need you to take control %s",
-        "I want your hands all over me %s",
         "I'm all yours %s",
         "Make me feel like I belong to you",
         "I can't wait to feel you %s",
-        "i'm you're little thing",
         "Feed me mommy",
-        "Do whatever you want with me",
+        "Can i lick your feet %s",
+        "Punish me"
     };
 
+    public static String[] getStraightsubmissive() {
+        return StraightSubmissive;
+    }
+
+    public static String[] getStraightdominant() {
+        return StraightDominant;
+    }
+
     private static final String[] StraightDominant = new String[]{
-        "Say my name when you do that",
-        "You know what I want, give it to me",
         "Call me daddy",
-        "I love how you look right before I touch you",
-        "Take it off, all of it, now",
         "Get on your knees",
         "Beg for it",
-        "Look at me when you say it",
-        "You belong to me tonight",
-        "No more excuses, obey",
-        "I want you exactly where I need you",
-        "You don't get to leave until I say so"
+        "Suck my cock %s",
+        "Good girl",
+        "Your so wet for me %s",
+        "Little slut"
     };
 
     private static final String[] GaySubmissive = new String[]{
@@ -171,6 +192,46 @@ public class AutoMoan extends BlackOutModule {
         //The fact that I have said a few of these frightens me : SigmaClientWasTaken 2023 wtf sigma
     };
 
+    private static final String[] UniversalSubmissive = new String[]{
+        "I’m ready for you %s",
+        "Tell me what you want and I’ll give it to you",
+        "You can take control and I’ll follow",
+        "I’m all yours when you want me",
+        "Keep talking, I like hearing your voice %s",
+        "I’m ready whenever you are %s",
+        "Come closer and let me know what you want %s",
+        "I want to make you feel good %s",
+        "I’m here for you, just say what you want %s",
+        "Do whatever you want with me",
+        "Use me as your toy",
+        "Tell me what you want %s",
+        "Please use me %s",
+        "I need you to take control %s",
+        "I want your hands all over me %s",
+        "i'm you're little thing"
+    };
+
+    private static final String[] UniversalDominant = new String[]{
+        "You know exactly what I want from you",
+        "Look at me when you say it %s",
+        "You belong to this moment with me",
+        "I want you exactly where I need you",
+        "You’re mine for tonight %s",
+        "Say my name when you do that %s",
+        "You don’t get to leave until I say so",
+        "I want you right here with me",
+        "You’re going to give me everything I want",
+        "I want your full attention %s",
+        "Say my name when you do that",
+        "You know what I want, give it to me",
+        "I want you exactly where I need you",
+        "You don't get to leave until I say so",
+        "Look at me when you say it",
+        "You belong to me tonight",
+        "I love how you look right before I touch you",
+        "Take it off, all of it, now"
+    };
+
     private final Random r = new Random();
 
 
@@ -196,7 +257,17 @@ public class AutoMoan extends BlackOutModule {
         }
 
         String name = target.getName().getString();
-        ChatUtils.sendPlayerMsg(getRandomMessage(contentMode.get(), messageStyle.get(), name));
+        String message = getRandomMessage(contentMode.get(), messageStyle.get(), name);
+
+        if (sendInPm.get()) {
+            String command = privateMessageCommand.get().replace("%s", name).trim();
+            if (!command.isEmpty() && mc.getNetworkHandler() != null) {
+                String commandText = command.startsWith("/") ? command.substring(1) : command;
+                mc.getNetworkHandler().sendChatCommand(commandText + " " + message);
+            }
+        } else {
+            ChatUtils.sendPlayerMsg(message);
+        }
     }
 
     private String getRandomMessage(ContentMode contentMode, MessageStyle messageStyle, String targetName) {
@@ -209,14 +280,25 @@ public class AutoMoan extends BlackOutModule {
     private String[] getMessages(ContentMode contentMode, MessageStyle messageStyle) {
         return switch (contentMode) {
             case Straight -> switch (messageStyle) {
-                case Submissive -> StraightSubmissive;
-                case Dominant -> StraightDominant;
+                case Submissive -> mergeMessages(StraightSubmissive, UniversalSubmissive);
+                case Dominant -> mergeMessages(StraightDominant, UniversalDominant);
             };
             case Gay -> switch (messageStyle) {
-                case Submissive -> GaySubmissive;
-                case Dominant -> GayDominant;
+                case Submissive -> mergeMessages(GaySubmissive, UniversalSubmissive);
+                case Dominant -> mergeMessages(GayDominant, UniversalDominant);
+            };
+            case Universal -> switch (messageStyle) {
+                case Submissive -> UniversalSubmissive;
+                case Dominant -> UniversalDominant;
             };
         };
+    }
+
+    private String[] mergeMessages(String[] primaryMessages, String[] secondaryMessages) {
+        String[] merged = new String[primaryMessages.length + secondaryMessages.length];
+        System.arraycopy(primaryMessages, 0, merged, 0, primaryMessages.length);
+        System.arraycopy(secondaryMessages, 0, merged, primaryMessages.length, secondaryMessages.length);
+        return merged;
     }
 
     private int getNextIndex(String[] messages, int previousIndex) {
@@ -242,6 +324,10 @@ public class AutoMoan extends BlackOutModule {
                 case Submissive -> lastGaySubmissiveIndex;
                 case Dominant -> lastGayDominantIndex;
             };
+            case Universal -> switch (messageStyle) {
+                case Submissive -> lastUniversalSubmissiveIndex;
+                case Dominant -> lastUniversalDominantIndex;
+            };
         };
     }
 
@@ -259,11 +345,30 @@ public class AutoMoan extends BlackOutModule {
                     case Dominant -> lastGayDominantIndex = index;
                 }
             }
+            case Universal -> {
+                switch (messageStyle) {
+                    case Submissive -> lastUniversalSubmissiveIndex = index;
+                    case Dominant -> lastUniversalDominantIndex = index;
+                }
+            }
         }
     }
 
     private PlayerEntity getClosest() {
         assert mc.player != null && mc.world != null;
+
+        String targetName = targetUsername.get().trim();
+        if (!targetName.isEmpty()) {
+            for (PlayerEntity player : mc.world.getPlayers()) {
+                if (player == mc.player) continue;
+                if (iFriends.get() && Friends.get().isFriend(player)) continue;
+                if (player.getName().getString().equalsIgnoreCase(targetName)) {
+                    return player;
+                }
+            }
+            return null;
+        }
+
         PlayerEntity closest = null;
         float distance = -1;
         if (!mc.world.getPlayers().isEmpty()) {
