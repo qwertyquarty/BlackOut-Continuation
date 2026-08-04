@@ -29,7 +29,7 @@ This fork keeps BlackOut compatible with newer versions while preserving the ori
 ## Building
 
 ```bash
-git clone https://github.com/HYPE115/BlackOut-1.21.11.git
+git clone https://github.com/HYPE115/BlackOut-Continuation.git
 cd BlackOut-1.21.11
 ./gradlew build
 ````
