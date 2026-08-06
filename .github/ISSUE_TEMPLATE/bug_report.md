@@ -25,7 +25,6 @@ If applicable, add screenshots to help explain your problem.
 
 **Infos**
  - OS: [e.g. Windows 10]
- - Browser [e.g. chrome, safari]
  - Version [e.g. 1.5.2]
 
 **Additional context**
