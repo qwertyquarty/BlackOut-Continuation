@@ -5,6 +5,7 @@ import kassuk.addon.blackout.commands.*;
 import kassuk.addon.blackout.globalsettings.*;
 import kassuk.addon.blackout.hud.*;
 import kassuk.addon.blackout.modules.*;
+import kassuk.addon.blackout.utils.UpdateChecker;
 import meteordevelopment.meteorclient.addons.MeteorAddon;
 import meteordevelopment.meteorclient.commands.Commands;
 import meteordevelopment.meteorclient.pathing.PathManagers;
@@ -41,6 +42,8 @@ public class BlackOut extends MeteorAddon {
         initializeCommands();
 
         initializeHud(Hud.get());
+
+        UpdateChecker.start();
     }
 
     private void initializeModules(Modules modules) {
@@ -62,6 +65,7 @@ public class BlackOut extends MeteorAddon {
         modules.add(new Blocker());
         modules.add(new BurrowPlus());
         modules.add(new CustomFOV());
+        modules.add(new DamageMoan());
         modules.add(new ElytraFlyPlus());
         modules.add(new FastXP());
         modules.add(new FeetESP());

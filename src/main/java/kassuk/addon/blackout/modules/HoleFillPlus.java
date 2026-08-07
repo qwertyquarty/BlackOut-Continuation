@@ -337,6 +337,8 @@ public class HoleFillPlus extends BlackOutModule {
         .build()
     );
 
+    private static final int HISTORY_SIZE = 20;
+
     private final List<BlockPos> holes = new ArrayList<>();
     private final TimerList<BlockPos> timers = new TimerList<>();
     private final List<Render> render = new ArrayList<>();
@@ -375,13 +377,16 @@ public class HoleFillPlus extends BlackOutModule {
             shouldUpdate = false;
         }
 
-        render.removeIf(r -> System.currentTimeMillis() - r.time > 1000);
+        long now = System.currentTimeMillis();
+        render.removeIf(r -> now - r.time > 1000);
 
-        render.forEach(r -> {
-            double progress = 1 - Math.min(System.currentTimeMillis() - r.time + renderTime.get() * 1000, fadeTime.get() * 1000) / (fadeTime.get() * 1000d);
+        double renderTimeMs = renderTime.get() * 1000;
+        double fadeTimeMs = fadeTime.get() * 1000;
+        for (Render r : render) {
+            double progress = 1 - Math.min(now - r.time + renderTimeMs, fadeTimeMs) / fadeTimeMs;
 
             event.renderer.box(r.pos, new Color(sideColor.get().r, sideColor.get().g, sideColor.get().b, (int) Math.round(sideColor.get().a * progress)), new Color(lineColor.get().r, lineColor.get().g, lineColor.get().b, (int) Math.round(lineColor.get().a * progress)), shapeMode.get(), 0);
-        });
+        }
     }
 
     private void update() {
@@ -399,7 +404,10 @@ public class HoleFillPlus extends BlackOutModule {
         hand = getHand();
         switched = false;
 
-        holes.stream().sorted(Comparator.comparingDouble(pos -> pos.toCenterPos().distanceTo(mc.player.getEyePos()))).forEach(this::place);
+        holes.sort(Comparator.comparingDouble(pos -> pos.toCenterPos().distanceTo(mc.player.getEyePos())));
+        for (BlockPos pos : holes) {
+            place(pos);
+        }
 
         if (switched && hand == null) {
             switch (switchMode.get()) {
@@ -441,59 +449,57 @@ public class HoleFillPlus extends BlackOutModule {
     }
 
     private void updateWalk() {
-        Map<AbstractClientPlayerEntity, List<Movement>> newMap = new HashMap<>();
+        Map<AbstractClientPlayerEntity, List<Movement>> newMap = new HashMap<>(Math.max(1, mc.world.getPlayers().size()));
 
         for (AbstractClientPlayerEntity player : mc.world.getPlayers()) {
             Movement m = new Movement(
                 MathHelper.wrapDegrees((float)Math.toDegrees(Math.atan2(player.getZ() - player.lastZ, player.getX() - player.lastX)) - 90f),
                 player.getEntityPos()
             );
-            if (!walkAngles.containsKey(player)) {
-                List<Movement> l = new ArrayList<>();
+            List<Movement> history = walkAngles.get(player);
+            if (history == null) {
+                List<Movement> l = new ArrayList<>(HISTORY_SIZE);
                 l.add(m);
                 newMap.put(player, l);
                 continue;
             }
-            List<Movement> l = walkAngles.get(player);
-            l.add(0, m);
 
-            if (l.size() > 20) {
-                l.subList(20, l.size()).clear();
+            history.add(0, m);
+            if (history.size() > HISTORY_SIZE) {
+                history.subList(HISTORY_SIZE, history.size()).clear();
             }
 
-            newMap.put(player, l);
+            newMap.put(player, history);
         }
 
         walkAngles.clear();
         walkAngles.putAll(newMap);
-        newMap.clear();
     }
 
     private void updateLook() {
-        Map<AbstractClientPlayerEntity, List<Look>> newMap = new HashMap<>();
+        Map<AbstractClientPlayerEntity, List<Look>> newMap = new HashMap<>(Math.max(1, mc.world.getPlayers().size()));
 
         for (AbstractClientPlayerEntity player : mc.world.getPlayers()) {
             Look e = new Look(MathHelper.wrapDegrees(player.getYaw()), player.getPitch(), player.getEyePos());
 
-            if (!lookAngles.containsKey(player)) {
-                List<Look> l = new ArrayList<>();
+            List<Look> history = lookAngles.get(player);
+            if (history == null) {
+                List<Look> l = new ArrayList<>(HISTORY_SIZE);
                 l.add(e);
                 newMap.put(player, l);
                 continue;
             }
-            List<Look> l = lookAngles.get(player);
-            l.add(0, e);
 
-            if (l.size() > 20) {
-                l.subList(20, l.size()).clear();
+            history.add(0, e);
+            if (history.size() > HISTORY_SIZE) {
+                history.subList(HISTORY_SIZE, history.size()).clear();
             }
 
-            newMap.put(player, l);
+            newMap.put(player, history);
         }
 
         lookAngles.clear();
         lookAngles.putAll(newMap);
-        newMap.clear();
     }
 
     private void updateHoles() {
@@ -502,7 +508,7 @@ public class HoleFillPlus extends BlackOutModule {
         int range = (int) Math.ceil(Math.max(SettingUtils.getPlaceRange(), SettingUtils.getPlaceWallsRange()) + 1);
         BlockPos p = BlockPos.ofFloored(mc.player.getEyePos());
 
-        List<Hole> holeList = new ArrayList<>();
+        List<Hole> holeList = new ArrayList<>(Math.max(64, (range * 2 + 1) * (range * 2 + 1) * (range * 2 + 1)));
 
         for (int x = -range; x <= range; x++) {
             for (int y = -range; y <= range; y++) {
@@ -519,11 +525,13 @@ public class HoleFillPlus extends BlackOutModule {
             }
         }
 
-        holeList.forEach(hole -> {
-            if (!validHole(hole)) return;
+        for (Hole hole : holeList) {
+            if (!validHole(hole)) continue;
 
-            Arrays.stream(hole.positions).filter(this::validPos).forEach(holes::add);
-        });
+            for (BlockPos pos : hole.positions) {
+                if (validPos(pos)) holes.add(pos);
+            }
+        }
     }
 
     private boolean validPos(BlockPos pos) {
@@ -630,9 +638,10 @@ public class HoleFillPlus extends BlackOutModule {
                 }
             }
             case Seconds -> {
-                if (placesLeft >= places.get() || System.currentTimeMillis() - lastTime >= placeDelayS.get() * 1000) {
+                long now = System.currentTimeMillis();
+                if (placesLeft >= places.get() || now - lastTime >= placeDelayS.get() * 1000) {
                     placesLeft = places.get();
-                    lastTime = System.currentTimeMillis();
+                    lastTime = now;
                 }
             }
         }
@@ -668,7 +677,8 @@ public class HoleFillPlus extends BlackOutModule {
             return;
         }
 
-        render.add(new Render(pos, System.currentTimeMillis()));
+        long now = System.currentTimeMillis();
+        render.add(new Render(pos, now));
         timers.add(pos, delay.get());
 
         placeBlock(hand == null ? Hand.MAIN_HAND : hand, data.pos().toCenterPos(), data.dir(), data.pos());

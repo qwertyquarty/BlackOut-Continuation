@@ -739,9 +739,10 @@ public class AutoCrystalPlus extends BlackOutModule {
         if (rangeBox == null) rangePos = mc.player.getEyePos();
         else rangePos = new Vec3d((rangeBox.minX + rangeBox.maxX) / 2f, rangeBox.minY + mc.player.getEyeHeight(mc.player.getPose()), (rangeBox.minZ + rangeBox.maxZ) / 2f);
 
-        List<BlockPos> toRemove = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        List<BlockPos> toRemove = new ArrayList<>(existedList.size());
         existedList.forEach((key, val) -> {
-            if (System.currentTimeMillis() - val >= 5000 + existed.get() * 1000)
+            if (now - val >= 5000 + existed.get() * 1000)
                 toRemove.add(key);
         });
         toRemove.forEach(existedList::remove);
@@ -755,7 +756,7 @@ public class AutoCrystalPlus extends BlackOutModule {
 
         toRemove.clear();
         own.forEach((key, val) -> {
-            if (System.currentTimeMillis() - val >= 5000)
+            if (now - val >= 5000)
                 toRemove.add(key);
         });
         toRemove.forEach(own::remove);
@@ -771,13 +772,14 @@ public class AutoCrystalPlus extends BlackOutModule {
         if (autoMine == null) autoMine = Modules.get().get(AutoMine.class);
 
         suicide = Modules.get().isActive(Suicide.class);
-        double delta = (System.currentTimeMillis() - lastMillis) / 1000f;
-        lastMillis = System.currentTimeMillis();
+        long now = System.currentTimeMillis();
+        double delta = (now - lastMillis) / 1000f;
+        lastMillis = now;
 
         cps = 0;
         synchronized (explosions) {
             explosions.removeIf(time -> {
-                double p = (System.currentTimeMillis() - time) / 1000D;
+                double p = (now - time) / 1000D;
 
                 if (p >= 5) return true;
 
@@ -1494,18 +1496,19 @@ public class AutoCrystalPlus extends BlackOutModule {
     }
 
     private void checkDelayed() {
-        List<Predict> toRemove = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        List<Predict> toRemove = new ArrayList<>(predicts.size());
         for (Predict p : predicts) {
-            if (System.currentTimeMillis() >= p.time) {
+            if (now >= p.time) {
                 explode(p.id, p.pos);
                 toRemove.add(p);
             }
         }
         toRemove.forEach(predicts::remove);
 
-        List<SetDead> toRemove2 = new ArrayList<>();
+        List<SetDead> toRemove2 = new ArrayList<>(setDeads.size());
         for (SetDead p : setDeads) {
-            if (System.currentTimeMillis() >= p.time) {
+            if (now >= p.time) {
                 setEntityDead(p.entity);
                 toRemove2.add(p);
             }

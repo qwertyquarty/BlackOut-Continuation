@@ -16,6 +16,7 @@ import java.util.*;
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class ExtrapolationUtils {
+    private static final int MAX_HISTORY = 20;
     private static Map<AbstractClientPlayerEntity, List<Vec3d>> motions = new HashMap<>();
 
     @PreInit
@@ -25,28 +26,30 @@ public class ExtrapolationUtils {
 
     @EventHandler(priority = 1000000)
     private static void onTick(TickEvent.Post event) {
-        if (mc.player == null || mc.world == null || mc.world.getPlayers().isEmpty()) return;
+        if (mc.player == null || mc.world == null || mc.world.getPlayers().isEmpty()) {
+            motions.clear();
+            return;
+        }
 
-        Map<AbstractClientPlayerEntity, List<Vec3d>> newMotions = new HashMap<>();
+        Map<AbstractClientPlayerEntity, List<Vec3d>> newMotions = new HashMap<>(Math.max(1, mc.world.getPlayers().size()));
 
         for (AbstractClientPlayerEntity player : mc.world.getPlayers()) {
             Vec3d vec = player.getEntityPos().subtract(player.lastX, player.lastY, player.lastZ);
+            List<Vec3d> history = motions.get(player);
 
-            if (!motions.containsKey(player)) {
-                List<Vec3d> v = new ArrayList<>();
+            if (history == null) {
+                List<Vec3d> v = new ArrayList<>(MAX_HISTORY);
                 v.add(vec);
                 newMotions.put(player, v);
                 continue;
             }
 
-            List<Vec3d> v = motions.get(player);
-            v.add(0, vec);
-
-            if (v.size() > 20) {
-                v.subList(20, v.size()).clear();
+            history.add(0, vec);
+            if (history.size() > MAX_HISTORY) {
+                history.subList(MAX_HISTORY, history.size()).clear();
             }
 
-            newMotions.put(player, v);
+            newMotions.put(player, history);
         }
 
         motions = newMotions;
