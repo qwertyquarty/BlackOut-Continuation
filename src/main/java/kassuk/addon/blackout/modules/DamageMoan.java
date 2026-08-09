@@ -17,7 +17,7 @@ import java.util.Random;
 
 public class DamageMoan extends BlackOutModule {
     public DamageMoan() {
-        super(BlackOut.BLACKOUT, "Damage Moan", "Sends a message when you take configurable damage.");
+        super(BlackOut.BLACKOUT, "Damage Moan", "Send weird things when ur dom hurt u");
     }
 
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
