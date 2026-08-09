@@ -19,7 +19,6 @@ public class PriorityUtils {
         if (module instanceof AutoPearl) return 6;
         if (module instanceof AutoTrapPlus) return 5;
         if (module instanceof BedAuraPlus) return 8;
-        if (module instanceof FastXP) return 3;
         if (module instanceof HoleFillPlus) return 7;
         if (module instanceof HoleFillRewrite) return 7;
         if (module instanceof KillAuraPlus) return 11;

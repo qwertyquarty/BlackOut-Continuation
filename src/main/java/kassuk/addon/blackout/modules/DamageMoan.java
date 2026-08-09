@@ -148,13 +148,9 @@ public class DamageMoan extends BlackOutModule {
             if (!shouldTrackAttacker()) return;
             if (mc.world == null || mc.player == null || dmg.entityId() != mc.player.getId()) return;
 
-            int attackerId = dmg.sourceDirectId();
-            if (attackerId == 0) attackerId = dmg.sourceCauseId();
-            if (attackerId == 0) return;
-
-            Entity attackerEntity = mc.world.getEntityById(attackerId);
-            if (attackerEntity instanceof PlayerEntity player) {
-                lastAttackerName = player.getName().getString();
+            String attacker = getAttackerName(dmg);
+            if (attacker != null) {
+                lastAttackerName = attacker;
                 attackerCacheTicks = cacheDuration.get() * 20;
             }
             return;
@@ -165,7 +161,6 @@ public class DamageMoan extends BlackOutModule {
                 if (packet.getStatus() == 35) { // totem pop status
                     Entity entity = packet.getEntity(mc.world);
                     if (entity == mc.player) {
-                        clearAttackerCache();
                         if (delayTicks <= 0) {
                             List<String> list = messages.get();
                             if (list == null || list.isEmpty()) return;
@@ -200,6 +195,21 @@ public class DamageMoan extends BlackOutModule {
             }
         }
         ChatUtils.sendPlayerMsg(msg);
+    }
+
+    private String getAttackerName(EntityDamageS2CPacket dmg) {
+        if (mc.world == null) return null;
+
+        int attackerId = dmg.sourceDirectId();
+        if (attackerId == 0) attackerId = dmg.sourceCauseId();
+        if (attackerId == 0) return null;
+
+        Entity attackerEntity = mc.world.getEntityById(attackerId);
+        if (attackerEntity instanceof PlayerEntity player) {
+            return player.getName().getString();
+        }
+
+        return null;
     }
 
     private void clearAttackerCache() {

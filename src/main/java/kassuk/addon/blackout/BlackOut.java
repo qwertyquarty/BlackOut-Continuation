@@ -48,7 +48,6 @@ public class BlackOut extends MeteorAddon {
 
     private void initializeModules(Modules modules) {
         modules.add(new AnchorAuraPlus());
-        modules.add(new AnteroTaateli());
         modules.add(new AntiAim());
         modules.add(new AntiCrawl());
         modules.add(new AutoCraftingTable());
@@ -67,16 +66,12 @@ public class BlackOut extends MeteorAddon {
         modules.add(new CustomFOV());
         modules.add(new DamageMoan());
         modules.add(new ElytraFlyPlus());
-        modules.add(new FastXP());
-        modules.add(new FeetESP());
         modules.add(new FlightPlus());
         // SORRY GUYS I'LL TRY T FIX IT // modules.add(new Fog());
         // UPDATE: THIS AIN'T COMIN BACK FOR A WHILE LOL FUCK RENDERING
-        modules.add(new ForceSneak());
         modules.add(new HoleFillPlus());
         modules.add(new HoleFillRewrite());
         modules.add(new HoleSnap());
-        modules.add(new JesusPlus());
         modules.add(new KillAuraPlus());
         modules.add(new LightsOut());
         modules.add(new MineESP());
@@ -86,7 +81,6 @@ public class BlackOut extends MeteorAddon {
         modules.add(new PingSpoof());
         modules.add(new PistonCrystal());
         modules.add(new PistonPush());
-        modules.add(new PortalGodMode());
         modules.add(new RPC());
         modules.add(new ScaffoldPlus());
         modules.add(new SelfTrapPlus());

@@ -1105,6 +1105,48 @@ public class AutoCrystalPlus extends BlackOutModule {
                 }
             }
 
+            // Place obsidian into the air above the placement pos if it's empty
+            BlockPos obiPos = pos.up();
+            if (mc.world.getBlockState(obiPos).getBlock() == Blocks.AIR) {
+                Hand obiHand = getHand(stack -> stack.getItem() == Items.OBSIDIAN);
+                int obiSilentSlot = InvUtils.find(itemStack -> itemStack.getItem() == Items.OBSIDIAN).slot();
+                int obiHotbar = InvUtils.findInHotbar(Items.OBSIDIAN).slot();
+
+                boolean obiSwitched = false;
+                if (obiHand == null) {
+                    switch (switchMode.get()) {
+                        case PickSilent -> obiSwitched = BOInvUtils.pickSwitch(obiSilentSlot);
+                        case Silent -> {
+                            if (obiHotbar >= 0) {
+                                InvUtils.swap(obiHotbar, true);
+                                obiSwitched = true;
+                            }
+                        }
+                        case InvSilent -> obiSwitched = BOInvUtils.invSwitch(obiSilentSlot);
+                    }
+                }
+
+                if (obiHand == null) {
+                    if (!obiSwitched) {
+                        // no obsidian available, skip placing obi
+                    } else {
+                        obiHand = Hand.MAIN_HAND;
+                    }
+                }
+
+                if (obiHand != null) {
+                    placeBlock(obiHand, pos.toCenterPos(), Direction.UP, pos);
+
+                    if (obiSwitched) {
+                        switch (switchMode.get()) {
+                            case Silent -> InvUtils.swapBack();
+                            case PickSilent -> BOInvUtils.pickSwapBack();
+                            case InvSilent -> BOInvUtils.swapBack();
+                        }
+                    }
+                }
+            }
+
             addExisted(pos.up());
 
             if (!isOwn(pos.up())) own.put(pos.up(), System.currentTimeMillis());

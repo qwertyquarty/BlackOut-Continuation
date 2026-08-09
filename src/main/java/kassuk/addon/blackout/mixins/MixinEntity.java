@@ -1,7 +1,6 @@
 package kassuk.addon.blackout.mixins;
 
 import kassuk.addon.blackout.modules.AntiCrawl;
-import kassuk.addon.blackout.modules.ForceSneak;
 import kassuk.addon.blackout.modules.StepPlus;
 import meteordevelopment.meteorclient.systems.modules.Modules;
 import net.minecraft.entity.Entity;
@@ -92,7 +91,7 @@ public abstract class MixinEntity {
     @Inject(method = "isInSneakingPose", at = @At(value = "RETURN"), cancellable = true)
     private void isSneaking(CallbackInfoReturnable<Boolean> cir) {
         if (mc.player == null || this.getName() != mc.player.getName()) {
-            cir.setReturnValue(Modules.get().get(ForceSneak.class).isActive() || this.isInPose(EntityPose.CROUCHING));
+            cir.setReturnValue(this.isInPose(EntityPose.CROUCHING));
         }
     }
 

@@ -8,8 +8,12 @@
 - Enhanced `extrapolationutils` for smoother movement prediction and targeting.
 
 ### New Features
-- Added `damagemoan` support for improved combat feedback.
+- Added `damagemoan` bc it's funny.
 - Added an update checker to notify users when a new version is available.
+
+### Removed
+- Removed the following modules entirely: Portal God Mode, Force Sneak, Jesus+, Feet ESP, Fast XP, and Auto Andrew Tate.
+- Cleaned up remaining references and imports to these modules.
 
 ### Notes
 - This is a development release, some features may still be unstable.
