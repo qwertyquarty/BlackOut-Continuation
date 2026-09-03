@@ -2,7 +2,7 @@ package kassuk.addon.blackout.commands;
 
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import meteordevelopment.meteorclient.commands.Command;
-import net.minecraft.command.CommandSource;
+import net.minecraft.client.multiplayer.ClientSuggestionProvider;
 
 import static com.mojang.brigadier.Command.SINGLE_SUCCESS;
 
@@ -16,7 +16,7 @@ public class BlackoutGit extends Command {
     }
 
     @Override
-    public void build(LiteralArgumentBuilder<CommandSource> builder) {
+    public void build(LiteralArgumentBuilder<ClientSuggestionProvider> builder) {
         builder.executes(context -> {
             info("https://github.com/HYPE115/BlackOut-Continuation");
             return SINGLE_SUCCESS;

@@ -1,11 +1,11 @@
 plugins {
-    id("fabric-loom") version "1.14-SNAPSHOT"
+    id("net.fabricmc.fabric-loom") version "1.17-SNAPSHOT"
 }
 
 base {
-    archivesName = properties["archives_base_name"] as String
-    group = properties["maven_group"] as String
-    version = properties["mod_version"] as String
+    archivesName = project.property("archives_base_name") as String
+    group = project.property("maven_group") as String
+    version = project.property("mod_version") as String
 }
 
 repositories {
@@ -21,13 +21,12 @@ repositories {
 
 dependencies {
     // Fabric
-    minecraft("com.mojang:minecraft:${properties["minecraft_version"] as String}")
-    mappings("net.fabricmc:yarn:${properties["yarn_mappings"] as String}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${properties["loader_version"] as String}")
+    minecraft("com.mojang:minecraft:${project.property("minecraft_version") as String}")
+    implementation("net.fabricmc:fabric-loader:${project.property("loader_version") as String}")
 
     // Meteor
-    modImplementation("meteordevelopment:meteor-client:${properties["meteor_version"] as String}-SNAPSHOT")
-    modCompileOnly("meteordevelopment:baritone:${properties["minecraft_version"] as String}-SNAPSHOT")
+    implementation("meteordevelopment:meteor-client:${project.property("meteor_version") as String}-SNAPSHOT")
+    compileOnly("meteordevelopment:baritone:${project.property("minecraft_version") as String}-SNAPSHOT")
 }
 
 loom {
@@ -49,12 +48,12 @@ tasks {
     }
 
     withType<JavaCompile> {
-        options.release = 21
+        options.release = 25
         options.encoding = "UTF-8"
     }
 
     java {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_25
+        targetCompatibility = JavaVersion.VERSION_25
     }
 }

@@ -18,18 +18,21 @@ import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.*;
-
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.phys.*;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.phys.AABB;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -197,10 +200,10 @@ public class AutoTrapPlus extends BlackOutModule {
     @Override
     public void onActivate() {
         super.onActivate();
-        if (mc.player == null || mc.world == null) {
+        if (mc.player == null || mc.level == null) {
             toggle();
         }
-        startPos = mc.player.getBlockPos();
+        startPos = mc.player.blockPosition();
     }
 
     @Override
@@ -223,10 +226,10 @@ public class AutoTrapPlus extends BlackOutModule {
             placeTimer = 0;
         }
 
-        if (mc.player != null && mc.world != null) {
+        if (mc.player != null && mc.level != null) {
 
             // Move Check
-            if (toggleMove.get() && (mc.player.getBlockPos().getX() != startPos.getX() || mc.player.getBlockPos().getZ() != startPos.getZ())) {
+            if (toggleMove.get() && (mc.player.blockPosition().getX() != startPos.getX() || mc.player.blockPosition().getZ() != startPos.getZ())) {
                 sendDisableMsg("moved");
                 toggle();
                 return;
@@ -235,21 +238,21 @@ public class AutoTrapPlus extends BlackOutModule {
             // Y Check
             switch (toggleY.get()) {
                 case Full -> {
-                    if (mc.player.getBlockPos().getY() != startPos.getY()) {
+                    if (mc.player.blockPosition().getY() != startPos.getY()) {
                         sendDisableMsg("moved vertically");
                         toggle();
                         return;
                     }
                 }
                 case Up -> {
-                    if (mc.player.getBlockPos().getY() > startPos.getY()) {
+                    if (mc.player.blockPosition().getY() > startPos.getY()) {
                         sendDisableMsg("moved up");
                         toggle();
                         return;
                     }
                 }
                 case Down -> {
-                    if (mc.player.getBlockPos().getY() < startPos.getY()) {
+                    if (mc.player.blockPosition().getY() < startPos.getY()) {
                         sendDisableMsg("moved down");
                         toggle();
                         return;
@@ -259,7 +262,7 @@ public class AutoTrapPlus extends BlackOutModule {
 
             // Sneak Check
             if (toggleSneak.get()) {
-                boolean isClicked = mc.options.sneakKey.isPressed();
+                boolean isClicked = mc.options.keyShift.isDown();
                 if (isClicked && !lastSneak) {
                     sendDisableMsg("sneaked");
                     toggle();
@@ -270,9 +273,9 @@ public class AutoTrapPlus extends BlackOutModule {
 
             List<BlockPos> blocksList = new ArrayList<>();
 
-            for (PlayerEntity player : mc.world.getPlayers()) {
+            for (Player player : mc.level.players()) {
                 if (player != mc.player && !player.isSpectator() && player.getHealth() > 0 && !Friends.get().isFriend(player) && mc.player.distanceTo(player) < 10 && (!onlyHole.get() || holeCamping(player))) {
-                    blocksList.addAll(getBlocks(player, getSize(player.getBlockPos().up(), player), player.getBoundingBox().intersects(Box.from(new BlockBox(player.getBlockPos().up(2))))));
+                    blocksList.addAll(getBlocks(player, getSize(player.blockPosition().above(), player), player.getBoundingBox().intersects(AABB.of(new BoundingBox(player.blockPosition().above(2))))));
                 }
             }
 
@@ -280,11 +283,11 @@ public class AutoTrapPlus extends BlackOutModule {
 
             List<BlockPos> placements = getValid(blocksList);
 
-            render.forEach(item -> event.renderer.box(Box.from(new BlockBox(item.pos)), item.support ? supportSideColor.get() : sideColor.get(), item.support ? supportLineColor.get() : lineColor.get(), shapeMode.get(), 0));
+            render.forEach(item -> event.renderer.box(AABB.of(new BoundingBox(item.pos)), item.support ? supportSideColor.get() : sideColor.get(), item.support ? supportLineColor.get() : lineColor.get(), shapeMode.get(), 0));
 
             FindItemResult hotbar = InvUtils.findInHotbar(item -> item.getItem() instanceof BlockItem && blocks.get().contains(((BlockItem) item.getItem()).getBlock()));
             FindItemResult inventory = InvUtils.find(item -> item.getItem() instanceof BlockItem && blocks.get().contains(((BlockItem) item.getItem()).getBlock()));
-            Hand hand = isValid(Managers.HOLDING.getStack()) ? Hand.MAIN_HAND : isValid(mc.player.getOffHandStack()) ? Hand.OFF_HAND : null;
+            InteractionHand hand = isValid(Managers.HOLDING.getStack()) ? InteractionHand.MAIN_HAND : isValid(mc.player.getOffhandItem()) ? InteractionHand.OFF_HAND : null;
 
 
             if ((!pauseEat.get() || !mc.player.isUsingItem()) &&
@@ -299,8 +302,8 @@ public class AutoTrapPlus extends BlackOutModule {
                 }
 
                 if (!toPlace.isEmpty()) {
-                    int obsidian = hand == Hand.MAIN_HAND ? Managers.HOLDING.getStack().getCount() :
-                        hand == Hand.OFF_HAND ? mc.player.getOffHandStack().getCount() : -1;
+                    int obsidian = hand == InteractionHand.MAIN_HAND ? Managers.HOLDING.getStack().getCount() :
+                        hand == InteractionHand.OFF_HAND ? mc.player.getOffhandItem().getCount() : -1;
 
 
                     if (hand == null) {
@@ -317,7 +320,7 @@ public class AutoTrapPlus extends BlackOutModule {
                         for (int i = 0; i < Math.min(obsidian, toPlace.size()); i++) {
                             PlaceData placeData = onlyConfirmed.get() ? SettingUtils.getPlaceData(toPlace.get(i)) : SettingUtils.getPlaceDataOR(toPlace.get(i), placed::contains);
                             if (placeData.valid()) {
-                                boolean rotated = !SettingUtils.shouldRotate(RotationType.BlockPlace) || Managers.ROTATION.start(placeData.pos().offset(placeData.dir()), priority, RotationType.BlockPlace, Objects.hash(name + "placing"));
+                                boolean rotated = !SettingUtils.shouldRotate(RotationType.BlockPlace) || Managers.ROTATION.start(placeData.pos().relative(placeData.dir()), priority, RotationType.BlockPlace, Objects.hash(name + "placing"));
 
                                 if (!rotated) break;
 
@@ -336,7 +339,7 @@ public class AutoTrapPlus extends BlackOutModule {
                                     }
                                 }
 
-                                place(placeData, toPlace.get(i), hand == null ? Hand.MAIN_HAND : hand);
+                                place(placeData, toPlace.get(i), hand == null ? InteractionHand.MAIN_HAND : hand);
                             }
                         }
 
@@ -361,7 +364,7 @@ public class AutoTrapPlus extends BlackOutModule {
         return SettingUtils.getPlaceData(pos).valid();
     }
 
-    private void place(PlaceData d, BlockPos ogPos, Hand hand) {
+    private void place(PlaceData d, BlockPos ogPos, InteractionHand hand) {
         timers.add(ogPos, delay.get());
         if (onlyConfirmed.get()) {
             placed.add(ogPos, 1);
@@ -370,7 +373,7 @@ public class AutoTrapPlus extends BlackOutModule {
         placeTimer = 0;
         placesLeft--;
 
-        placeBlock(hand, d.pos().toCenterPos(), d.dir(), d.pos());
+        placeBlock(hand, Vec3.atCenterOf(d.pos()), d.dir(), d.pos());
 
         if (placeSwing.get()) clientSwing(placeHand.get(), hand);
 
@@ -386,13 +389,13 @@ public class AutoTrapPlus extends BlackOutModule {
         blocks.forEach(block -> {
             if (!OLEPOSSUtils.replaceable(block)) return;
 
-            if (cevFriendly.get() && crystalAt(block.up())) return;
+            if (cevFriendly.get() && crystalAt(block.above())) return;
 
             PlaceData data = onlyConfirmed.get() ? SettingUtils.getPlaceData(block) : SettingUtils.getPlaceDataOR(block, placed::contains);
 
             if (data.valid() && SettingUtils.inPlaceRange(data.pos())) {
                 render.add(new Render(block, false));
-                if (!EntityUtils.intersectsWithEntity(Box.from(new BlockBox(block)), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity)) &&
+                if (!EntityUtils.intersectsWithEntity(AABB.of(new BoundingBox(block)), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity)) &&
                     !timers.contains(block)) {
                     list.add(block);
                 }
@@ -404,29 +407,29 @@ public class AutoTrapPlus extends BlackOutModule {
 
             if (support1 != null) {
                 render.add(new Render(block, false));
-                render.add(new Render(block.offset(support1), true));
-                if (!EntityUtils.intersectsWithEntity(Box.from(new BlockBox(block.offset(support1))), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity)) &&
-                    !timers.contains(block.offset(support1))) {
-                    list.add(block.offset(support1));
+                render.add(new Render(block.relative(support1), true));
+                if (!EntityUtils.intersectsWithEntity(AABB.of(new BoundingBox(block.relative(support1))), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity)) &&
+                    !timers.contains(block.relative(support1))) {
+                    list.add(block.relative(support1));
                 }
                 return;
             }
 
             // 2 block support
             for (Direction dir : Direction.values()) {
-                if (!OLEPOSSUtils.replaceable(block.offset(dir)) || !SettingUtils.inPlaceRange(block.offset(dir))) {
+                if (!OLEPOSSUtils.replaceable(block.relative(dir)) || !SettingUtils.inPlaceRange(block.relative(dir))) {
                     continue;
                 }
 
-                Direction support2 = getSupport(block.offset(dir));
+                Direction support2 = getSupport(block.relative(dir));
 
                 if (support2 != null) {
                     render.add(new Render(block, false));
-                    render.add(new Render(block.offset(dir), true));
-                    render.add(new Render(block.offset(dir).offset(support2), true));
-                    if (!EntityUtils.intersectsWithEntity(Box.from(new BlockBox(block.offset(dir).offset(support2))), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity)) &&
-                        !timers.contains(block.offset(dir).offset(support2))) {
-                        list.add(block.offset(dir).offset(support2));
+                    render.add(new Render(block.relative(dir), true));
+                    render.add(new Render(block.relative(dir).relative(support2), true));
+                    if (!EntityUtils.intersectsWithEntity(AABB.of(new BoundingBox(block.relative(dir).relative(support2))), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity)) &&
+                        !timers.contains(block.relative(dir).relative(support2))) {
+                        list.add(block.relative(dir).relative(support2));
                     }
                     return;
                 }
@@ -441,14 +444,14 @@ public class AutoTrapPlus extends BlackOutModule {
         int value = -1;
 
         for (Direction dir : Direction.values()) {
-            PlaceData data = onlyConfirmed.get() ? SettingUtils.getPlaceData(position.offset(dir)) : SettingUtils.getPlaceDataOR(position.offset(dir), placed::contains);
+            PlaceData data = onlyConfirmed.get() ? SettingUtils.getPlaceData(position.relative(dir)) : SettingUtils.getPlaceDataOR(position.relative(dir), placed::contains);
 
             if (!data.valid() || !SettingUtils.inPlaceRange(data.pos())) {
                 continue;
             }
 
-            if (!EntityUtils.intersectsWithEntity(Box.from(new BlockBox(position.offset(dir))), entity -> !entity.isSpectator() && entity.getType() != EntityType.ITEM)) {
-                double dist = mc.player.getEyePos().distanceTo(position.offset(dir).toCenterPos());
+            if (!EntityUtils.intersectsWithEntity(AABB.of(new BoundingBox(position.relative(dir))), entity -> !entity.isSpectator() && entity.getType() != EntityTypes.ITEM)) {
+                double dist = mc.player.getEyePosition().distanceTo(Vec3.atCenterOf(position.relative(dir)));
 
                 if (dist < cDist || value < 2) {
                     value = 2;
@@ -457,8 +460,8 @@ public class AutoTrapPlus extends BlackOutModule {
                 }
             }
 
-            if (!EntityUtils.intersectsWithEntity(Box.from(new BlockBox(position.offset(dir))), entity -> !entity.isSpectator() && entity.getType() != EntityType.ITEM && entity.getType() != EntityType.END_CRYSTAL)) {
-                double dist = mc.player.getEyePos().distanceTo(position.offset(dir).toCenterPos());
+            if (!EntityUtils.intersectsWithEntity(AABB.of(new BoundingBox(position.relative(dir))), entity -> !entity.isSpectator() && entity.getType() != EntityTypes.ITEM && entity.getType() != EntityTypes.END_CRYSTAL)) {
+                double dist = mc.player.getEyePosition().distanceTo(Vec3.atCenterOf(position.relative(dir)));
 
                 if (dist < cDist || value < 1) {
                     value = 1;
@@ -471,9 +474,9 @@ public class AutoTrapPlus extends BlackOutModule {
         return cDir;
     }
 
-    private List<BlockPos> getBlocks(PlayerEntity player, int[] size, boolean higher) {
+    private List<BlockPos> getBlocks(Player player, int[] size, boolean higher) {
         List<BlockPos> list = new ArrayList<>();
-        BlockPos pos = player.getBlockPos().up(higher ? 2 : 1);
+        BlockPos pos = player.blockPosition().above(higher ? 2 : 1);
 
         for (int x = size[0] - 1; x <= size[1] + 1; x++) {
             for (int z = size[2] - 1; z <= size[3] + 1; z++) {
@@ -481,15 +484,15 @@ public class AutoTrapPlus extends BlackOutModule {
                 boolean isX = x == size[0] - 1 || x == size[1] + 1;
                 boolean isZ = z == size[2] - 1 || z == size[3] + 1;
 
-                boolean ignore = isX && !isZ ? (!OLEPOSSUtils.replaceable(pos.add(OLEPOSSUtils.closerToZero(x), 0, z)) || placed.contains(pos.add(OLEPOSSUtils.closerToZero(x), 0, z))) :
-                    !isX && isZ && (!OLEPOSSUtils.replaceable(pos.add(x, 0, OLEPOSSUtils.closerToZero(z))) || placed.contains(pos.add(x, 0, OLEPOSSUtils.closerToZero(z))));
+                boolean ignore = isX && !isZ ? (!OLEPOSSUtils.replaceable(pos.offset(OLEPOSSUtils.closerToZero(x), 0, z)) || placed.contains(pos.offset(OLEPOSSUtils.closerToZero(x), 0, z))) :
+                    !isX && isZ && (!OLEPOSSUtils.replaceable(pos.offset(x, 0, OLEPOSSUtils.closerToZero(z))) || placed.contains(pos.offset(x, 0, OLEPOSSUtils.closerToZero(z))));
 
                 BlockPos bPos = null;
 
                 if (eye() && isX != isZ && !ignore) {
-                    bPos = new BlockPos(x, pos.getY(), z).add(pos.getX(), 0, pos.getZ());
-                } else if (top() && !isX && !isZ && OLEPOSSUtils.replaceable(pos.add(x, 0, z)) && !placed.contains(pos.add(x, 0, z)))
-                    bPos = new BlockPos(x, pos.getY(), z).add(pos.getX(), 1, pos.getZ());
+                    bPos = new BlockPos(x, pos.getY(), z).offset(pos.getX(), 0, pos.getZ());
+                } else if (top() && !isX && !isZ && OLEPOSSUtils.replaceable(pos.offset(x, 0, z)) && !placed.contains(pos.offset(x, 0, z)))
+                    bPos = new BlockPos(x, pos.getY(), z).offset(pos.getX(), 1, pos.getZ());
 
                 if (bPos != null) list.add(bPos);
             }
@@ -506,52 +509,52 @@ public class AutoTrapPlus extends BlackOutModule {
         return trapMode.get() == TrapMode.Both || trapMode.get() == TrapMode.Eyes;
     }
 
-    private int[] getSize(BlockPos pos, PlayerEntity player) {
+    private int[] getSize(BlockPos pos, Player player) {
         int minX = 0;
         int maxX = 0;
         int minZ = 0;
         int maxZ = 0;
-        if (mc.world != null) {
-            Box box = player.getBoundingBox();
-            if (box.intersects(Box.from(new BlockBox(pos.north())))) minZ--;
+        if (mc.level != null) {
+            AABB box = player.getBoundingBox();
+            if (box.intersects(AABB.of(new BoundingBox(pos.north())))) minZ--;
 
-            if (box.intersects(Box.from(new BlockBox(pos.south())))) maxZ++;
+            if (box.intersects(AABB.of(new BoundingBox(pos.south())))) maxZ++;
 
-            if (box.intersects(Box.from(new BlockBox(pos.west())))) minX--;
+            if (box.intersects(AABB.of(new BoundingBox(pos.west())))) minX--;
 
-            if (box.intersects(Box.from(new BlockBox(pos.east())))) maxX++;
+            if (box.intersects(AABB.of(new BoundingBox(pos.east())))) maxX++;
         }
         return new int[]{minX, maxX, minZ, maxZ};
     }
 
-    private boolean holeCamping(PlayerEntity player) {
-        BlockPos pos = player.getBlockPos();
+    private boolean holeCamping(Player player) {
+        BlockPos pos = player.blockPosition();
 
         if (HoleUtils.getHole(pos, 1).type == HoleType.Single)
             return true;
 
         // DoubleX
         if (HoleUtils.getHole(pos, 1).type == HoleType.DoubleX ||
-            HoleUtils.getHole(pos.add(-1, 0, 0), 1).type == HoleType.DoubleX) {
+            HoleUtils.getHole(pos.offset(-1, 0, 0), 1).type == HoleType.DoubleX) {
             return true;
         }
 
         // DoubleZ
         if (HoleUtils.getHole(pos, 1).type == HoleType.DoubleZ ||
-            HoleUtils.getHole(pos.add(0, 0, -1), 1).type == HoleType.DoubleZ) {
+            HoleUtils.getHole(pos.offset(0, 0, -1), 1).type == HoleType.DoubleZ) {
             return true;
         }
 
         // Quad
         return HoleUtils.getHole(pos, 1).type == HoleType.Quad ||
-            HoleUtils.getHole(pos.add(-1, 0, -1), 1).type == HoleType.Quad ||
-            HoleUtils.getHole(pos.add(-1, 0, 0), 1).type == HoleType.Quad ||
-            HoleUtils.getHole(pos.add(0, 0, -1), 1).type == HoleType.Quad;
+            HoleUtils.getHole(pos.offset(-1, 0, -1), 1).type == HoleType.Quad ||
+            HoleUtils.getHole(pos.offset(-1, 0, 0), 1).type == HoleType.Quad ||
+            HoleUtils.getHole(pos.offset(0, 0, -1), 1).type == HoleType.Quad;
     }
 
     private boolean crystalAt(BlockPos pos) {
-        for (Entity entity : mc.world.getEntities()) {
-            if (entity instanceof EndCrystalEntity && entity.getBlockPos().equals(pos)) {
+        for (Entity entity : mc.level.entitiesForRendering()) {
+            if (entity instanceof EndCrystal && entity.blockPosition().equals(pos)) {
                 return true;
             }
         }

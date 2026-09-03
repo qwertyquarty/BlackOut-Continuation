@@ -1,11 +1,11 @@
 package kassuk.addon.blackout.mixins;
 
-import net.minecraft.network.packet.s2c.play.EntityS2CPacket;
+import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
-@Mixin(EntityS2CPacket.class)
+@Mixin(ClientboundMoveEntityPacket.class)
 public interface IEntityS2CPacket {
-    @Accessor("id")
+    @Accessor("entityId")
     int blackout$getId();
 }

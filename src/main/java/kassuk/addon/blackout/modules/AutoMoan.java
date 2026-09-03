@@ -8,8 +8,7 @@ import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.systems.friends.Friends;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.player.PlayerEntity;
-
+import net.minecraft.world.entity.player.Player;
 import java.util.Random;
 
 /**
@@ -244,14 +243,14 @@ public class AutoMoan extends BlackOutModule {
     private void onTick(TickEvent.Pre event) {
         timer++;
         //I fucking got perm banned on a really important server to test this out you all better fucking enjoy using this
-        if (mc.player != null && mc.world != null && timer >= delay.get()) {
+        if (mc.player != null && mc.level != null && timer >= delay.get()) {
             MOAN();
             timer = 0;
         }
     }
 
     private void MOAN() {
-        PlayerEntity target = getClosest();
+        Player target = getClosest();
         if (target == null) {
             return;
         }
@@ -261,9 +260,9 @@ public class AutoMoan extends BlackOutModule {
 
         if (sendInPm.get()) {
             String command = privateMessageCommand.get().replace("%s", name).trim();
-            if (!command.isEmpty() && mc.getNetworkHandler() != null) {
+            if (!command.isEmpty() && mc.getConnection() != null) {
                 String commandText = command.startsWith("/") ? command.substring(1) : command;
-                mc.getNetworkHandler().sendChatCommand(commandText + " " + message);
+                mc.getConnection().sendCommand(commandText + " " + message);
             }
         } else {
             ChatUtils.sendPlayerMsg(message);
@@ -354,12 +353,12 @@ public class AutoMoan extends BlackOutModule {
         }
     }
 
-    private PlayerEntity getClosest() {
-        assert mc.player != null && mc.world != null;
+    private Player getClosest() {
+        assert mc.player != null && mc.level != null;
 
         String targetName = targetUsername.get().trim();
         if (!targetName.isEmpty()) {
-            for (PlayerEntity player : mc.world.getPlayers()) {
+            for (Player player : mc.level.players()) {
                 if (player == mc.player) continue;
                 if (iFriends.get() && Friends.get().isFriend(player)) continue;
                 if (player.getName().getString().equalsIgnoreCase(targetName)) {
@@ -369,14 +368,14 @@ public class AutoMoan extends BlackOutModule {
             return null;
         }
 
-        PlayerEntity closest = null;
+        Player closest = null;
         float distance = -1;
-        if (!mc.world.getPlayers().isEmpty()) {
-            for (PlayerEntity player : mc.world.getPlayers()) {
+        if (!mc.level.players().isEmpty()) {
+            for (Player player : mc.level.players()) {
                 if (player != mc.player && (!iFriends.get() || !Friends.get().isFriend(player))) {
-                    if (closest == null || mc.player.getEntityPos().distanceTo(player.getEntityPos()) < distance) {
+                    if (closest == null || mc.player.position().distanceTo(player.position()) < distance) {
                         closest = player;
-                        distance = (float) mc.player.getEntityPos().distanceTo(player.getEntityPos());
+                        distance = (float) mc.player.position().distanceTo(player.position());
                     }
                 }
             }

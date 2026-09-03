@@ -2,16 +2,16 @@ package kassuk.addon.blackout.mixins;
 
 import kassuk.addon.blackout.modules.AutoMine;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import net.minecraft.block.BlockState;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.ClientPlayerInteractionManager;
-import net.minecraft.client.network.SequencedPacketCreator;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
+import net.minecraft.client.multiplayer.prediction.PredictiveAction;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.block.state.BlockState;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,106 +21,106 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(ClientPlayerInteractionManager.class)
+@Mixin(MultiPlayerGameMode.class)
 public abstract class MixinClientPlayerInteractionManager {
     @Shadow
-    public abstract void sendSequencedPacket(ClientWorld world, SequencedPacketCreator packetCreator);
+    public abstract void startPrediction(ClientLevel world, PredictiveAction packetCreator);
 
     @Shadow
-    public abstract boolean breakBlock(BlockPos pos);
+    public abstract boolean destroyBlock(BlockPos pos);
 
     @Shadow
     @Final
-    private MinecraftClient client;
+    private Minecraft minecraft;
     @Shadow
-    private float blockBreakingSoundCooldown;
+    private float destroyTicks;
     @Shadow
-    private float currentBreakingProgress;
+    private float destroyProgress;
     @Shadow
-    private ItemStack selectedStack;
+    private ItemStack destroyingItem;
     @Shadow
-    private BlockPos currentBreakingPos;
+    private BlockPos destroyBlockPos;
     @Shadow
-    private boolean breakingBlock;
+    private boolean isDestroying;
 
     @Shadow
-    public abstract int getBlockBreakingProgress();
+    public abstract int getDestroyStage();
 
     @Unique
     private BlockPos position = null;
 
-    @Inject(method = "attackBlock", at = @At("HEAD"))
+    @Inject(method = "startDestroyBlock", at = @At("HEAD"))
     private void onAttack(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         position = pos;
     }
 
-    @Redirect(method = "attackBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerInteractionManager;sendSequencedPacket(Lnet/minecraft/client/world/ClientWorld;Lnet/minecraft/client/network/SequencedPacketCreator;)V", ordinal = 1))
-    private void onStart(ClientPlayerInteractionManager instance, ClientWorld world, SequencedPacketCreator packetCreator) {
+    @Redirect(method = "startDestroyBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;startPrediction(Lnet/minecraft/client/multiplayer/ClientLevel;Lnet/minecraft/client/multiplayer/prediction/PredictiveAction;)V", ordinal = 1))
+    private void onStart(MultiPlayerGameMode instance, ClientLevel world, PredictiveAction packetCreator) {
         AutoMine autoMine = Modules.get().get(AutoMine.class);
 
         if (!autoMine.isActive()) {
-            sendSequencedPacket(world, packetCreator);
+            startPrediction(world, packetCreator);
             return;
         }
 
         BlockState blockState = world.getBlockState(position);
         boolean bl = !blockState.isAir();
-        if (bl && currentBreakingProgress == 0.0F) {
-            blockState.onBlockBreakStart(client.world, position, client.player);
+        if (bl && destroyProgress == 0.0F) {
+            blockState.attack(minecraft.level, position, minecraft.player);
         }
 
-        if (bl && blockState.calcBlockBreakingDelta(client.player, client.player.getEntityWorld(), position) >= 1.0F) {
-            breakBlock(position);
+        if (bl && blockState.getDestroyProgress(minecraft.player, minecraft.player.level(), position) >= 1.0F) {
+            destroyBlock(position);
         } else {
-            breakingBlock = true;
-            currentBreakingPos = position;
-            selectedStack = client.player.getMainHandStack();
-            currentBreakingProgress = 0.0F;
-            blockBreakingSoundCooldown = 0.0F;
-            client.world.setBlockBreakingInfo(client.player.getId(), currentBreakingPos, getBlockBreakingProgress());
+            isDestroying = true;
+            destroyBlockPos = position;
+            destroyingItem = minecraft.player.getMainHandItem();
+            destroyProgress = 0.0F;
+            destroyTicks = 0.0F;
+            minecraft.level.destroyBlockProgress(minecraft.player.getId(), destroyBlockPos, getDestroyStage());
         }
 
         autoMine.onStart(position);
     }
 
-    @Redirect(method = "attackBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/packet/Packet;)V", ordinal = 0))
-    private void onAbort(ClientPlayNetworkHandler instance, Packet<?> packet) {
+    @Redirect(method = "startDestroyBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V", ordinal = 0))
+    private void onAbort(ClientPacketListener instance, Packet<?> packet) {
         AutoMine autoMine = Modules.get().get(AutoMine.class);
 
         if (!autoMine.isActive()) {
-            instance.sendPacket(packet);
+            instance.send(packet);
             return;
         }
 
         autoMine.onAbort(position);
     }
 
-    @Inject(method = "updateBlockBreakingProgress", at = @At("HEAD"))
+    @Inject(method = "continueDestroyBlock", at = @At("HEAD"))
     private void onUpdateProgress(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
         position = pos;
     }
 
-    @Redirect(method = "updateBlockBreakingProgress", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerInteractionManager;sendSequencedPacket(Lnet/minecraft/client/world/ClientWorld;Lnet/minecraft/client/network/SequencedPacketCreator;)V", ordinal = 1))
-    private void onStop(ClientPlayerInteractionManager instance, ClientWorld world, SequencedPacketCreator packetCreator) {
+    @Redirect(method = "continueDestroyBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;startPrediction(Lnet/minecraft/client/multiplayer/ClientLevel;Lnet/minecraft/client/multiplayer/prediction/PredictiveAction;)V", ordinal = 1))
+    private void onStop(MultiPlayerGameMode instance, ClientLevel world, PredictiveAction packetCreator) {
         AutoMine autoMine = Modules.get().get(AutoMine.class);
 
         if (!autoMine.isActive()) {
-            sendSequencedPacket(world, packetCreator);
+            startPrediction(world, packetCreator);
             return;
         }
 
         autoMine.onStop(position);
     }
 
-    @Redirect(method = "cancelBlockBreaking", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/packet/Packet;)V"))
-    private void cancel(ClientPlayNetworkHandler instance, Packet<?> packet) {
+    @Redirect(method = "stopDestroyBlock", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"))
+    private void cancel(ClientPacketListener instance, Packet<?> packet) {
         AutoMine autoMine = Modules.get().get(AutoMine.class);
 
         if (!autoMine.isActive()) {
-            instance.sendPacket(packet);
+            instance.send(packet);
             return;
         }
 
-        autoMine.onAbort(currentBreakingPos);
+        autoMine.onAbort(destroyBlockPos);
     }
 }

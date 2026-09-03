@@ -7,11 +7,10 @@ import meteordevelopment.meteorclient.events.packets.PacketEvent;
 import meteordevelopment.meteorclient.settings.*;
 import meteordevelopment.meteorclient.utils.player.ChatUtils;
 import meteordevelopment.orbit.EventHandler;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
-import net.minecraft.network.packet.s2c.play.EntityDamageS2CPacket;
-
+import net.minecraft.network.protocol.game.ClientboundDamageEventPacket;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
 import java.util.List;
 import java.util.Random;
 
@@ -101,7 +100,7 @@ public class DamageMoan extends BlackOutModule {
 
         double currentHealth = mc.player.getHealth() + mc.player.getAbsorptionAmount();
 
-        if (mc.player.isDead() || currentHealth <= 0) {
+        if (mc.player.isDeadOrDying() || currentHealth <= 0) {
             clearAttackerCache();
             previousHealth = currentHealth;
             return;
@@ -144,9 +143,9 @@ public class DamageMoan extends BlackOutModule {
     private void onReceive(PacketEvent.Receive event) {
         if (!isActive()) return;
 
-        if (event.packet instanceof EntityDamageS2CPacket dmg) {
+        if (event.packet instanceof ClientboundDamageEventPacket dmg) {
             if (!shouldTrackAttacker()) return;
-            if (mc.world == null || mc.player == null || dmg.entityId() != mc.player.getId()) return;
+            if (mc.level == null || mc.player == null || dmg.entityId() != mc.player.getId()) return;
 
             String attacker = getAttackerName(dmg);
             if (attacker != null) {
@@ -157,9 +156,9 @@ public class DamageMoan extends BlackOutModule {
         }
 
         if (triggerMode.get() == TriggerMode.Totem || triggerMode.get() == TriggerMode.Both) {
-            if (event.packet instanceof EntityStatusS2CPacket packet) {
-                if (packet.getStatus() == 35) { // totem pop status
-                    Entity entity = packet.getEntity(mc.world);
+            if (event.packet instanceof ClientboundEntityEventPacket packet) {
+                if (packet.getEventId() == 35) { // totem pop status
+                    Entity entity = packet.getEntity(mc.level);
                     if (entity == mc.player) {
                         if (delayTicks <= 0) {
                             List<String> list = messages.get();
@@ -187,25 +186,25 @@ public class DamageMoan extends BlackOutModule {
         String attacker = lastAttackerName.trim();
         if (sendInPm.get() && !attacker.isEmpty()) {
             String cmd = pmCommand.get().trim();
-            if (!cmd.isEmpty() && mc.getNetworkHandler() != null) {
+            if (!cmd.isEmpty() && mc.getConnection() != null) {
                 String filled = cmd.replace("%s", attacker).trim();
                 String commandText = filled.startsWith("/") ? filled.substring(1) : filled;
-                mc.getNetworkHandler().sendChatCommand(commandText + " " + msg);
+                mc.getConnection().sendCommand(commandText + " " + msg);
                 return;
             }
         }
         ChatUtils.sendPlayerMsg(msg);
     }
 
-    private String getAttackerName(EntityDamageS2CPacket dmg) {
-        if (mc.world == null) return null;
+    private String getAttackerName(ClientboundDamageEventPacket dmg) {
+        if (mc.level == null) return null;
 
         int attackerId = dmg.sourceDirectId();
         if (attackerId == 0) attackerId = dmg.sourceCauseId();
         if (attackerId == 0) return null;
 
-        Entity attackerEntity = mc.world.getEntityById(attackerId);
-        if (attackerEntity instanceof PlayerEntity player) {
+        Entity attackerEntity = mc.level.getEntity(attackerId);
+        if (attackerEntity instanceof Player player) {
             return player.getName().getString();
         }
 

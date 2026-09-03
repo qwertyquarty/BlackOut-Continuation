@@ -4,11 +4,11 @@ import kassuk.addon.blackout.managers.Managers;
 import kassuk.addon.blackout.modules.SwingModifier;
 import kassuk.addon.blackout.modules.TickShift;
 import meteordevelopment.meteorclient.systems.modules.Modules;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.client.network.ClientPlayerEntity;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.util.Hand;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.world.InteractionHand;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -18,30 +18,30 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(ClientPlayerEntity.class)
+@Mixin(LocalPlayer.class)
 public abstract class MixinClientPlayerEntity {
     @Shadow
     @Final
-    public ClientPlayNetworkHandler networkHandler;
+    public ClientPacketListener connection;
     @Unique
     private static boolean sent = false;
 
-    @Inject(method = "swingHand(Lnet/minecraft/util/Hand;)V", at = @At(value = "HEAD"))
-    private void swingHand(Hand hand, CallbackInfo ci) {
+    @Inject(method = "swing(Lnet/minecraft/world/InteractionHand;)V", at = @At(value = "HEAD"))
+    private void swingHand(InteractionHand hand, CallbackInfo ci) {
         Modules.get().get(SwingModifier.class).startSwing(hand);
     }
 
-    @Inject(method = "sendMovementPackets", at = @At("HEAD"))
+    @Inject(method = "sendPosition", at = @At("HEAD"))
     private void sendPacketsHead(CallbackInfo ci) {
         sent = false;
     }
 
-    @Inject(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/packet/Packet;)V"))
+    @Inject(method = "sendPosition", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V"))
     private void onSendPacket(CallbackInfo ci) {
         sent = true;
     }
 
-    @Inject(method = "sendMovementPackets", at = @At("TAIL"))
+    @Inject(method = "sendPosition", at = @At("TAIL"))
     private void sendPacketsTail(CallbackInfo ci) {
         if (!sent) {
             TickShift tickShift = Modules.get().get(TickShift.class);
@@ -51,23 +51,23 @@ public abstract class MixinClientPlayerEntity {
         }
     }
 
-    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/packet/Packet;)V", ordinal = 0))
-    private void sendPacketFull(ClientPlayNetworkHandler instance, Packet<?> packet) {
-        networkHandler.sendPacket(Managers.ROTATION.onFull((PlayerMoveC2SPacket.Full) packet));
+    @Redirect(method = "sendPosition", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V", ordinal = 0))
+    private void sendPacketFull(ClientPacketListener instance, Packet<?> packet) {
+        connection.send(Managers.ROTATION.onFull((ServerboundMovePlayerPacket.PosRot) packet));
     }
 
-    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/packet/Packet;)V", ordinal = 1))
-    private void sendPacketPosGround(ClientPlayNetworkHandler instance, Packet<?> packet) {
-        networkHandler.sendPacket(Managers.ROTATION.onPositionOnGround((PlayerMoveC2SPacket.PositionAndOnGround) packet));
+    @Redirect(method = "sendPosition", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V", ordinal = 1))
+    private void sendPacketPosGround(ClientPacketListener instance, Packet<?> packet) {
+        connection.send(Managers.ROTATION.onPositionOnGround((ServerboundMovePlayerPacket.Pos) packet));
     }
 
-    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/packet/Packet;)V", ordinal = 2))
-    private void sendPacketLookAndOnGround(ClientPlayNetworkHandler instance, Packet<?> packet) {
-        networkHandler.sendPacket(Managers.ROTATION.onLookAndOnGround((PlayerMoveC2SPacket.LookAndOnGround) packet));
+    @Redirect(method = "sendPosition", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V", ordinal = 2))
+    private void sendPacketLookAndOnGround(ClientPacketListener instance, Packet<?> packet) {
+        connection.send(Managers.ROTATION.onLookAndOnGround((ServerboundMovePlayerPacket.Rot) packet));
     }
 
-    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayNetworkHandler;sendPacket(Lnet/minecraft/network/packet/Packet;)V", ordinal = 3))
-    private void sendPacketOnGroundOnly(ClientPlayNetworkHandler instance, Packet<?> packet) {
-        networkHandler.sendPacket(Managers.ROTATION.onOnlyOnground((PlayerMoveC2SPacket.OnGroundOnly) packet));
+    @Redirect(method = "sendPosition", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;send(Lnet/minecraft/network/protocol/Packet;)V", ordinal = 3))
+    private void sendPacketOnGroundOnly(ClientPacketListener instance, Packet<?> packet) {
+        connection.send(Managers.ROTATION.onOnlyOnground((ServerboundMovePlayerPacket.StatusOnly) packet));
     }
 }

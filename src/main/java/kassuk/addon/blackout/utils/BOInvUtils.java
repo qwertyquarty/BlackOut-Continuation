@@ -5,17 +5,15 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import kassuk.addon.blackout.managers.Managers;
 import kassuk.addon.blackout.mixins.ComponentHasherNetworkHandlerAccessor;
-import meteordevelopment.meteorclient.mixin.ClientPlayNetworkHandlerAccessor;
-import meteordevelopment.meteorclient.mixininterface.IClientPlayerInteractionManager;
-import net.minecraft.client.network.ClientPlayNetworkHandler;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.c2s.play.ClickSlotC2SPacket;
-import net.minecraft.screen.ScreenHandler;
-import net.minecraft.screen.slot.Slot;
-import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.screen.sync.ComponentChangesHash;
-import net.minecraft.screen.sync.ItemStackHash;
+import meteordevelopment.meteorclient.mixin.ClientPacketListenerAccessor;
+import meteordevelopment.meteorclient.mixininterface.IMultiPlayerGameMode;
+import net.minecraft.network.HashedPatchMap;
+import net.minecraft.network.HashedStack;
+import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.ItemStack;
 
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
@@ -35,24 +33,24 @@ public class BOInvUtils {
             pickSlot = slot;
 
             // Obtain the container ID and revision from the player's current screen handler.
-            int syncId = mc.player.currentScreenHandler.syncId;
+            int syncId = mc.player.containerMenu.containerId;
             // Some implementations offer a revision getter; if not, you might default to 0.
-            int revision = mc.player.currentScreenHandler.getRevision();
+            int revision = mc.player.containerMenu.getStateId();
 
             // Define the click parameters:
             // button: 0 for primary click (adjust if you need a different click type)
             int button = 0;
             // actionType: use SlotActionType.PICKUP for a normal click (or change as needed)
-            SlotActionType actionType = SlotActionType.PICKUP;
+            ContainerInput actionType = ContainerInput.PICKUP;
 
-            ItemStack stack = mc.player.currentScreenHandler.getSlot(slot).getStack();
+            ItemStack stack = mc.player.containerMenu.getSlot(slot).getItem();
 
-            Int2ObjectMap<ItemStackHash> modifiedStacks = new Int2ObjectOpenHashMap<>();
+            Int2ObjectMap<HashedStack> modifiedStacks = new Int2ObjectOpenHashMap<>();
 
-            ComponentChangesHash.ComponentHasher componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getNetworkHandler()).getComponentHasher();
-            ItemStackHash stackHash = ItemStackHash.fromItemStack(stack, componentHasher);
+            HashedPatchMap.HashGenerator componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getConnection()).getComponentHasher();
+            HashedStack stackHash = HashedStack.create(stack, componentHasher);
 
-            ClickSlotC2SPacket packet = new ClickSlotC2SPacket(
+            ServerboundContainerClickPacket packet = new ServerboundContainerClickPacket(
                 syncId,
                 revision,
                 (short) slot,
@@ -62,7 +60,7 @@ public class BOInvUtils {
                 stackHash
             );
 
-            mc.getNetworkHandler().sendPacket(packet);
+            mc.getConnection().send(packet);
 
 
 
@@ -75,24 +73,24 @@ public class BOInvUtils {
     public static void pickSwapBack() {
         if (pickSlot >= 0) {
             // Obtain the container (screen handler) ID and revision.
-            int syncId = mc.player.currentScreenHandler.syncId;
+            int syncId = mc.player.containerMenu.containerId;
             // Use the current revision, or default to 0 if not available.
-            int revision = mc.player.currentScreenHandler.getRevision();
+            int revision = mc.player.containerMenu.getStateId();
 
             // Set click parameters.
             int button = 0; // Typically 0 for left-click; adjust as needed.
-            SlotActionType actionType = SlotActionType.PICKUP;
+            ContainerInput actionType = ContainerInput.PICKUP;
 
             // Retrieve the item stack from the stored pickSlot.
-            ItemStack stack = mc.player.currentScreenHandler.getSlot(pickSlot).getStack();
+            ItemStack stack = mc.player.containerMenu.getSlot(pickSlot).getItem();
 
             // Create an empty map for modified stacks (populate if needed).
-            Int2ObjectMap<ItemStackHash> modifiedStacks = new Int2ObjectOpenHashMap<>();
+            Int2ObjectMap<HashedStack> modifiedStacks = new Int2ObjectOpenHashMap<>();
 
-            ComponentChangesHash.ComponentHasher componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getNetworkHandler()).getComponentHasher();
-            ItemStackHash stackHash = ItemStackHash.fromItemStack(stack, componentHasher);
+            HashedPatchMap.HashGenerator componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getConnection()).getComponentHasher();
+            HashedStack stackHash = HashedStack.create(stack, componentHasher);
 
-            ClickSlotC2SPacket packet = new ClickSlotC2SPacket(
+            ServerboundContainerClickPacket packet = new ServerboundContainerClickPacket(
                 syncId,
                 revision,
                 (short) pickSlot,
@@ -100,7 +98,7 @@ public class BOInvUtils {
                 actionType,
                 modifiedStacks,
                 stackHash
-            );mc.getNetworkHandler().sendPacket(packet);
+            );mc.getConnection().send(packet);
 
             // Reset pickSlot after sending the packet.
             pickSlot = -1;
@@ -110,17 +108,17 @@ public class BOInvUtils {
     // Credits to rickyracuun
     public static boolean invSwitch(int slot) {
         if (slot >= 0) {
-            ScreenHandler handler = mc.player.currentScreenHandler;
-            ItemStack stack = handler.getSlot(slot).getStack();
-            ComponentChangesHash.ComponentHasher componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getNetworkHandler()).getComponentHasher();
-            ItemStackHash stackHash = ItemStackHash.fromItemStack(stack, componentHasher);
-            Int2ObjectMap<ItemStackHash> modifiedStacks = new Int2ObjectOpenHashMap<>();
+            AbstractContainerMenu handler = mc.player.containerMenu;
+            ItemStack stack = handler.getSlot(slot).getItem();
+            HashedPatchMap.HashGenerator componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getConnection()).getComponentHasher();
+            HashedStack stackHash = HashedStack.create(stack, componentHasher);
+            Int2ObjectMap<HashedStack> modifiedStacks = new Int2ObjectOpenHashMap<>();
 
-            mc.getNetworkHandler().sendPacket(new ClickSlotC2SPacket(handler.syncId,
-                handler.getRevision(), (short) (PlayerInventory.MAIN_SIZE + Managers.HOLDING.slot),
-                (byte) slot, SlotActionType.SWAP, modifiedStacks, stackHash)
+            mc.getConnection().send(new ServerboundContainerClickPacket(handler.containerId,
+                handler.getStateId(), (short) (Inventory.INVENTORY_SIZE + Managers.HOLDING.slot),
+                (byte) slot, ContainerInput.SWAP, modifiedStacks, stackHash)
             );
-            ((IClientPlayerInteractionManager) mc.interactionManager).meteor$syncSelected();
+            ((IMultiPlayerGameMode) mc.gameMode).meteor$syncSelected();
             slots = new int[]{slot, Managers.HOLDING.slot};
             return true;
         }
@@ -128,17 +126,17 @@ public class BOInvUtils {
     }
 
     public static void swapBack() {
-        ScreenHandler handler = mc.player.currentScreenHandler;
+        AbstractContainerMenu handler = mc.player.containerMenu;
         int slot = slots[0];
-        ItemStack stack = handler.getSlot(slot).getStack();
-        ComponentChangesHash.ComponentHasher componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getNetworkHandler()).getComponentHasher();
-        ItemStackHash stackHash = ItemStackHash.fromItemStack(stack, componentHasher);
-        Int2ObjectMap<ItemStackHash> modifiedStacks = new Int2ObjectOpenHashMap<>();
+        ItemStack stack = handler.getSlot(slot).getItem();
+        HashedPatchMap.HashGenerator componentHasher = ((ComponentHasherNetworkHandlerAccessor) mc.getConnection()).getComponentHasher();
+        HashedStack stackHash = HashedStack.create(stack, componentHasher);
+        Int2ObjectMap<HashedStack> modifiedStacks = new Int2ObjectOpenHashMap<>();
 
-        mc.getNetworkHandler().sendPacket(new ClickSlotC2SPacket(handler.syncId,
-            handler.getRevision(), (short) (PlayerInventory.MAIN_SIZE + slots[1]),
-            (byte) slots[0], SlotActionType.SWAP, modifiedStacks, stackHash)
+        mc.getConnection().send(new ServerboundContainerClickPacket(handler.containerId,
+            handler.getStateId(), (short) (Inventory.INVENTORY_SIZE + slots[1]),
+            (byte) slots[0], ContainerInput.SWAP, modifiedStacks, stackHash)
         );
-        ((IClientPlayerInteractionManager) mc.interactionManager).meteor$syncSelected();
+        ((IMultiPlayerGameMode) mc.gameMode).meteor$syncSelected();
     }
 }

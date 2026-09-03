@@ -12,33 +12,15 @@ import meteordevelopment.meteorclient.settings.SettingGroup;
 import meteordevelopment.meteorclient.utils.network.PacketUtils;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.c2s.common.*;
-import net.minecraft.network.packet.c2s.config.ReadyC2SPacket;
-import net.minecraft.network.packet.c2s.handshake.HandshakeC2SPacket;
-import net.minecraft.network.packet.c2s.login.EnterConfigurationC2SPacket;
-import net.minecraft.network.packet.c2s.login.LoginHelloC2SPacket;
-import net.minecraft.network.packet.c2s.login.LoginKeyC2SPacket;
-import net.minecraft.network.packet.c2s.login.LoginQueryResponseC2SPacket;
-import net.minecraft.network.packet.c2s.play.*;
-import net.minecraft.network.packet.c2s.query.QueryPingC2SPacket;
-import net.minecraft.network.packet.c2s.query.QueryRequestC2SPacket;
-import net.minecraft.network.packet.s2c.common.*;
-import net.minecraft.network.packet.s2c.config.DynamicRegistriesS2CPacket;
-import net.minecraft.network.packet.s2c.config.FeaturesS2CPacket;
-import net.minecraft.network.packet.s2c.config.ReadyS2CPacket;
-import net.minecraft.network.packet.s2c.login.*;
-import net.minecraft.network.packet.s2c.play.*;
-import net.minecraft.network.packet.s2c.query.PingResultS2CPacket;
-import net.minecraft.network.packet.s2c.query.QueryResponseS2CPacket;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.stat.Stat;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.village.TradeOffer;
-import net.minecraft.village.TradeOfferList;
-
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.common.*;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.network.protocol.common.*;
+import net.minecraft.network.protocol.login.*;
+import net.minecraft.network.protocol.game.*;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.PacketType;
 import java.util.*;
 
 /**
@@ -53,42 +35,42 @@ public class PacketLogger extends BlackOutModule {
     private final SettingGroup sgGeneral = settings.getDefaultGroup();
 
     // yoinked these settings from meteor
-    private final Setting<Set<Class<? extends Packet<?>>>> receivePackets = sgGeneral.add(new PacketListSetting.Builder()
+    private final Setting<Set<PacketType<? extends Packet<?>>>> receivePackets = sgGeneral.add(new PacketListSetting.Builder()
         .name("Receive")
         .description("Server-to-client packets to cancel.")
-        .filter(aClass -> PacketUtils.getS2CPackets().contains(aClass))
+        .filter(aClass -> PacketUtils.getClientboundPackets().contains(aClass))
         .build()
     );
 
-    private final Setting<Set<Class<? extends Packet<?>>>> sendPackets = sgGeneral.add(new PacketListSetting.Builder()
+    private final Setting<Set<PacketType<? extends Packet<?>>>> sendPackets = sgGeneral.add(new PacketListSetting.Builder()
         .name("Send")
         .description("Client-to-server packets to cancel.")
-        .filter(aClass -> PacketUtils.getC2SPackets().contains(aClass))
+        .filter(aClass -> PacketUtils.getServerboundPackets().contains(aClass))
         .build()
     );
 
     public void onSent(Packet<?> packet) {
         if (!isActive()) return;
-        if (sendPackets.get().contains(packet.getClass())) {
+        if (sendPackets.get().contains(packet.type())) {
             String message = packetMessage(packet);
 
             if (message == null) return;
-            log(Formatting.AQUA + "Send: " + Formatting.GRAY + message);
+            log(ChatFormatting.AQUA + "Send: " + ChatFormatting.GRAY + message);
         }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST + 1000000000)
     private void onReceive(PacketEvent.Receive event) {
-        if (receivePackets.get().contains(event.packet.getClass())) {
+        if (receivePackets.get().contains(event.packet.type())) {
             String message = packetMessage(event.packet);
 
             if (message == null) return;
-            log(Formatting.LIGHT_PURPLE + "Receive: " + Formatting.GRAY + message);
+            log(ChatFormatting.LIGHT_PURPLE + "Receive: " + ChatFormatting.GRAY + message);
         }
     }
 
     private void log(String string) {
-        sendMessage(Text.of(string), 0);
+        sendMessage(Component.nullToEmpty(string), 0);
     }
 
     // this was not fun

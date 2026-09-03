@@ -2,12 +2,11 @@ package kassuk.addon.blackout.utils;
 
 import kassuk.addon.blackout.BlackOut;
 import meteordevelopment.meteorclient.MeteorClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 import java.awt.Desktop;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -89,7 +88,7 @@ public class UpdateChecker {
         private final String latestUrl;
 
         private UpdateScreen(String latestVersion, String latestUrl) {
-            super(Text.literal("BlackOut update"));
+            super(Component.literal("BlackOut update"));
             this.latestVersion = latestVersion;
             this.latestUrl = latestUrl;
         }
@@ -101,33 +100,33 @@ public class UpdateChecker {
             int buttonHeight = 20;
             int centerX = width / 2 - buttonWidth / 2;
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("Open releases"), button -> {
+            addRenderableWidget(Button.builder(Component.literal("Open releases"), button -> {
                 try {
                     Desktop.getDesktop().browse(URI.create(latestUrl));
                 } catch (Exception ignored) {
                     // Ignore if the environment cannot open the browser.
                 }
-                close();
-            }).dimensions(centerX, height - 70, buttonWidth, buttonHeight).build());
+                onClose();
+            }).bounds(centerX, height - 70, buttonWidth, buttonHeight).build());
 
-            addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> close())
-                .dimensions(centerX, height - 40, buttonWidth, buttonHeight)
+            addRenderableWidget(Button.builder(Component.literal("Close"), button -> onClose())
+                .bounds(centerX, height - 40, buttonWidth, buttonHeight)
                 .build());
         }
 
         @Override
-        public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-            super.render(context, mouseX, mouseY, delta);
+        public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float tickDelta) {
+            super.extractRenderState(graphics, mouseX, mouseY, tickDelta);
 
-            context.fill(0, 0, width, height, 0xCC000000);
+            graphics.fill(0, 0, width, height, 0xCC000000);
 
-            Text title = Text.literal("BlackOut update available").formatted(Formatting.GOLD, Formatting.BOLD);
-            Text body = Text.literal("A newer version " + latestVersion + " is available.").formatted(Formatting.WHITE);
-            Text body2 = Text.literal("Open the release page to update.").formatted(Formatting.GRAY);
+            Component title = Component.literal("BlackOut update available").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+            Component body = Component.literal("A newer version " + latestVersion + " is available.").withStyle(ChatFormatting.WHITE);
+            Component body2 = Component.literal("Open the release page to update.").withStyle(ChatFormatting.GRAY);
 
-            context.drawCenteredTextWithShadow(textRenderer, title, width / 2, 60, 0xFFFFFF);
-            context.drawCenteredTextWithShadow(textRenderer, body, width / 2, 95, 0xFFFFFF);
-            context.drawCenteredTextWithShadow(textRenderer, body2, width / 2, 115, 0xFFFFFF);
+            graphics.centeredText(font, title, width / 2, 60, 0xFFFFFF);
+            graphics.centeredText(font, body, width / 2, 95, 0xFFFFFF);
+            graphics.centeredText(font, body2, width / 2, 115, 0xFFFFFF);
         }
     }
 
@@ -135,8 +134,8 @@ public class UpdateChecker {
         if (!checked || !updateAvailable || MeteorClient.mc == null) return;
 
         MeteorClient.mc.execute(() -> {
-            if (MeteorClient.mc.world != null || MeteorClient.mc.currentScreen != null) return;
-            MeteorClient.mc.setScreen(new UpdateScreen(latestVersion, latestUrl));
+            if (MeteorClient.mc.level != null || MeteorClient.mc.gui.screen() != null) return;
+            MeteorClient.mc.gui.setScreen(new UpdateScreen(latestVersion, latestUrl));
         });
 
         updateAvailable = false;

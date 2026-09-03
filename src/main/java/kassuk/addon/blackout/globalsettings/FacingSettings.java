@@ -9,12 +9,11 @@ import meteordevelopment.meteorclient.settings.BoolSetting;
 import meteordevelopment.meteorclient.settings.EnumSetting;
 import meteordevelopment.meteorclient.settings.Setting;
 import meteordevelopment.meteorclient.settings.SettingGroup;
-import net.minecraft.block.AirBlock;
-import net.minecraft.block.Block;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.block.AirBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.phys.Vec3;
 import java.util.function.Predicate;
 
 /**
@@ -60,7 +59,7 @@ public class FacingSettings extends BlackOutModule {
             return new PlaceData(null, null, false);
         }
         Direction best = null;
-        if (mc.world != null && mc.player != null) {
+        if (mc.level != null && mc.player != null) {
             if (airPlace.get()) {
                 return new PlaceData(pos, Direction.UP, true);
             } else {
@@ -68,27 +67,27 @@ public class FacingSettings extends BlackOutModule {
                 for (Direction dir : Direction.values()) {
 
                     // Doesn't place on top of max height
-                    if (heightCheck(pos.offset(dir))) {
+                    if (heightCheck(pos.relative(dir))) {
                         continue;
                     }
 
                     // Checks if block is an entity (chests, shulkers)
-                    if (ignoreContainers && mc.world.getBlockState(pos.offset(dir)).hasBlockEntity()) {
+                    if (ignoreContainers && mc.level.getBlockState(pos.relative(dir)).hasBlockEntity()) {
                         continue;
                     }
 
                     // Test if there is block in the side and if predicate is valid
-                    if (!OLEPOSSUtils.solid(pos.offset(dir)) && (predicate != null && !predicate.test(pos.offset(dir)))) {
+                    if (!OLEPOSSUtils.solid(pos.relative(dir)) && (predicate != null && !predicate.test(pos.relative(dir)))) {
                         continue;
                     }
 
                     // Strict dir check (checks if face is on opposite side of the block to player)
-                    if (strictDir.get() && !OLEPOSSUtils.strictDir(pos.offset(dir), dir.getOpposite())) {
+                    if (strictDir.get() && !OLEPOSSUtils.strictDir(pos.relative(dir), dir.getOpposite())) {
                         continue;
                     }
 
                     // Only accepts if closer than previous accepted direction
-                    double dist = SettingUtils.placeRangeTo(pos.offset(dir));
+                    double dist = SettingUtils.placeRangeTo(pos.relative(dir));
                     if (dist >= 0 && (cDist < 0 || dist < cDist)) {
                         best = dir;
                         cDist = dist;
@@ -96,7 +95,7 @@ public class FacingSettings extends BlackOutModule {
                 }
             }
         }
-        return best == null ? new PlaceData(null, null, false) : new PlaceData(pos.offset(best), best.getOpposite(), true);
+        return best == null ? new PlaceData(null, null, false) : new PlaceData(pos.relative(best), best.getOpposite(), true);
     }
 
     public PlaceData getPlaceDataAND(BlockPos pos, Predicate<Direction> predicate, Predicate<BlockPos> predicatePos, boolean ignoreContainers) {
@@ -104,7 +103,7 @@ public class FacingSettings extends BlackOutModule {
             return new PlaceData(null, null, false);
         }
         Direction best = null;
-        if (mc.world != null && mc.player != null) {
+        if (mc.level != null && mc.player != null) {
             if (airPlace.get()) {
                 return new PlaceData(pos, Direction.UP, true);
             } else {
@@ -112,27 +111,27 @@ public class FacingSettings extends BlackOutModule {
                 for (Direction dir : Direction.values()) {
 
                     // Doesn't place on top of max height
-                    if (heightCheck(pos.offset(dir))) {
+                    if (heightCheck(pos.relative(dir))) {
                         continue;
                     }
 
                     // Checks if block is an entity (chests, shulkers)
-                    if (ignoreContainers && mc.world.getBlockState(pos.offset(dir)).hasBlockEntity()) {
+                    if (ignoreContainers && mc.level.getBlockState(pos.relative(dir)).hasBlockEntity()) {
                         continue;
                     }
 
                     // Test if there is block in the side and if predicate is valid
-                    if (!OLEPOSSUtils.solid(pos.offset(dir)) || (predicate != null && !predicate.test(dir)) || (predicatePos != null && !predicatePos.test(pos.offset(dir)))) {
+                    if (!OLEPOSSUtils.solid(pos.relative(dir)) || (predicate != null && !predicate.test(dir)) || (predicatePos != null && !predicatePos.test(pos.relative(dir)))) {
                         continue;
                     }
 
                     // Strict dir check (checks if face is on opposite side of the block to player)
-                    if (strictDir.get() && !OLEPOSSUtils.strictDir(pos.offset(dir), dir.getOpposite())) {
+                    if (strictDir.get() && !OLEPOSSUtils.strictDir(pos.relative(dir), dir.getOpposite())) {
                         continue;
                     }
 
                     // Only accepts if closer than previous accepted direction
-                    double dist = SettingUtils.placeRangeTo(pos.offset(dir));
+                    double dist = SettingUtils.placeRangeTo(pos.relative(dir));
                     if (dist >= 0 && (cDist < 0 || dist < cDist)) {
                         best = dir;
                         cDist = dist;
@@ -140,7 +139,7 @@ public class FacingSettings extends BlackOutModule {
                 }
             }
         }
-        return best == null ? new PlaceData(null, null, false) : new PlaceData(pos.offset(best), best.getOpposite(), true);
+        return best == null ? new PlaceData(null, null, false) : new PlaceData(pos.relative(best), best.getOpposite(), true);
     }
 
     public PlaceData getPlaceData(BlockPos pos, boolean ignoreContainers) {
@@ -148,7 +147,7 @@ public class FacingSettings extends BlackOutModule {
             return new PlaceData(null, null, false);
         }
         Direction best = null;
-        if (mc.world != null && mc.player != null) {
+        if (mc.level != null && mc.player != null) {
             if (airPlace.get()) {
                 return new PlaceData(pos, Direction.UP, true);
             } else {
@@ -156,27 +155,27 @@ public class FacingSettings extends BlackOutModule {
                 for (Direction dir : Direction.values()) {
 
                     // Doesn't place on top of max height
-                    if (heightCheck(pos.offset(dir))) {
+                    if (heightCheck(pos.relative(dir))) {
                         continue;
                     }
 
                     // Checks if block is an entity (chests, shulkers)
-                    if (ignoreContainers && mc.world.getBlockState(pos.offset(dir)).hasBlockEntity() ) {
+                    if (ignoreContainers && mc.level.getBlockState(pos.relative(dir)).hasBlockEntity() ) {
                         continue;
                     }
 
                     // Test if there is block in the side and if predicate is valid
-                    if (!OLEPOSSUtils.solid(pos.offset(dir))) {
+                    if (!OLEPOSSUtils.solid(pos.relative(dir))) {
                         continue;
                     }
 
                     // Strict dir check (checks if face is on opposite side of the block to player)
-                    if (strictDir.get() && !OLEPOSSUtils.strictDir(pos.offset(dir), dir.getOpposite())) {
+                    if (strictDir.get() && !OLEPOSSUtils.strictDir(pos.relative(dir), dir.getOpposite())) {
                         continue;
                     }
 
                     // Only accepts if closer than previous accepted direction
-                    double dist = SettingUtils.placeRangeTo(pos.offset(dir));
+                    double dist = SettingUtils.placeRangeTo(pos.relative(dir));
                     if (dist >= 0 && (cDist < 0 || dist < cDist)) {
                         best = dir;
                         cDist = dist;
@@ -184,7 +183,7 @@ public class FacingSettings extends BlackOutModule {
                 }
             }
         }
-        return best == null ? new PlaceData(null, null, false) : new PlaceData(pos.offset(best), best.getOpposite(), true);
+        return best == null ? new PlaceData(null, null, false) : new PlaceData(pos.relative(best), best.getOpposite(), true);
     }
 
     public Direction getPlaceOnDirection(BlockPos pos) {
@@ -192,17 +191,17 @@ public class FacingSettings extends BlackOutModule {
             return null;
         }
         Direction best = null;
-        if (mc.world != null && mc.player != null) {
+        if (mc.level != null && mc.player != null) {
             double cDist = -1;
             for (Direction dir : Direction.values()) {
 
                 // Doesn't place on top of max height
-                if (heightCheck(pos.offset(dir))) {
+                if (heightCheck(pos.relative(dir))) {
                     continue;
                 }
 
                 // Unblocked check (mostly for autocrystal placement facings)
-                if (unblocked.get() && !(getBlock(pos.offset(dir)) instanceof AirBlock)) {
+                if (unblocked.get() && !(getBlock(pos.relative(dir)) instanceof AirBlock)) {
                     continue;
                 }
 
@@ -235,14 +234,14 @@ public class FacingSettings extends BlackOutModule {
             return 0;
         }
 
-        Vec3d vec = new Vec3d(pos.getX() + dir.getOffsetX() / 2f, pos.getY() + dir.getOffsetY() / 2f, pos.getZ() + dir.getOffsetZ() / 2f);
-        Vec3d dist = mc.player.getEyePos().add(-vec.x, -vec.y, -vec.z);
+        Vec3 vec = new Vec3(pos.getX() + dir.getStepX() / 2f, pos.getY() + dir.getStepY() / 2f, pos.getZ() + dir.getStepZ() / 2f);
+        Vec3 dist = mc.player.getEyePosition().add(-vec.x, -vec.y, -vec.z);
 
         return Math.sqrt(dist.x * dist.x + dist.y * dist.y + dist.z * dist.z);
     }
 
     private Block getBlock(BlockPos pos) {
-        return mc.world.getBlockState(pos).getBlock();
+        return mc.level.getBlockState(pos).getBlock();
     }
 
     public enum MaxHeight {

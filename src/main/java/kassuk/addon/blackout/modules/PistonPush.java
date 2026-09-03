@@ -18,20 +18,28 @@ import meteordevelopment.meteorclient.utils.player.InvUtils;
 import meteordevelopment.meteorclient.utils.render.color.SettingColor;
 import meteordevelopment.orbit.EventHandler;
 import meteordevelopment.orbit.EventPriority;
-import net.minecraft.block.*;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
-import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockBox;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-
+import net.minecraft.world.level.block.*;
+import net.minecraft.client.player.AbstractClientPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.AirBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FireBlock;
+import net.minecraft.world.level.block.RedstoneTorchBlock;
+import net.minecraft.world.level.block.TorchBlock;
+import net.minecraft.world.level.block.piston.PistonBaseBlock;
+import net.minecraft.world.level.block.piston.PistonHeadBlock;
+import net.minecraft.world.level.levelgen.structure.BoundingBox;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Objects;
@@ -215,7 +223,7 @@ public class PistonPush extends BlackOutModule {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     private void onRender(Render3DEvent event) {
-        if (mc.player == null || mc.world == null) return;
+        if (mc.player == null || mc.level == null) return;
 
         if (startPos != null && toggleMove.get()) {
             if (!startPos.equals(currentPos)) {
@@ -257,7 +265,7 @@ public class PistonPush extends BlackOutModule {
     private void placePiston() {
         if (pistonPlaced) return;
 
-        Hand hand = getHand(Items.PISTON);
+        InteractionHand hand = getHand(Items.PISTON);
         boolean available = hand != null;
 
         if (!available) {
@@ -271,10 +279,10 @@ public class PistonPush extends BlackOutModule {
             return;
         }
 
-        if (!mc.player.isOnGround()) return;
-        if (EntityUtils.intersectsWithEntity(Box.from(new BlockBox(pistonPos)), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity))) return;
+        if (!mc.player.onGround()) return;
+        if (EntityUtils.intersectsWithEntity(AABB.of(new BoundingBox(pistonPos)), entity -> !entity.isSpectator() && !(entity instanceof ItemEntity))) return;
         if (SettingUtils.shouldRotate(RotationType.BlockPlace) && !Managers.ROTATION.start(pistonData.pos(), priority, RotationType.BlockPlace, Objects.hash(name + "piston"))) return;
-        sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(pistonDir.getHorizontalQuarterTurns(), Managers.ROTATION.lastDir[1], Managers.ON_GROUND.isOnGround(), false));
+        sendPacket(new ServerboundMovePlayerPacket.Rot(pistonDir.get2DDataValue(), Managers.ROTATION.lastDir[1], Managers.ON_GROUND.isOnGround(), false));
 
         boolean switched = false;
 
@@ -293,9 +301,9 @@ public class PistonPush extends BlackOutModule {
             return;
         }
 
-        hand = hand == null ? Hand.MAIN_HAND : hand;
+        hand = hand == null ? InteractionHand.MAIN_HAND : hand;
 
-        placeBlock(hand, pistonData.pos().toCenterPos(), pistonData.dir(), pistonData.pos());
+        placeBlock(hand, Vec3.atCenterOf(pistonData.pos()), pistonData.dir(), pistonData.pos());
 
         if (SettingUtils.shouldRotate(RotationType.BlockPlace)) Managers.ROTATION.end(Objects.hash(name + "piston"));
         pistonTime = System.currentTimeMillis();
@@ -316,7 +324,7 @@ public class PistonPush extends BlackOutModule {
         if (!pistonPlaced || redstonePlaced) return;
         if (System.currentTimeMillis() - pistonTime < prDelay.get() * 1000) return;
 
-        Hand hand = getHand(redstone.get().i);
+        InteractionHand hand = getHand(redstone.get().i);
         boolean available = hand != null;
 
         if (!available) {
@@ -349,9 +357,9 @@ public class PistonPush extends BlackOutModule {
             return;
         }
 
-        hand = hand == null ? Hand.MAIN_HAND : hand;
+        hand = hand == null ? InteractionHand.MAIN_HAND : hand;
 
-        placeBlock(hand, redstoneData.pos().toCenterPos(), redstoneData.dir(), redstoneData.pos());
+        placeBlock(hand, Vec3.atCenterOf(redstoneData.pos()), redstoneData.dir(), redstoneData.pos());
 
         if (SettingUtils.shouldRotate(RotationType.BlockPlace)) Managers.ROTATION.end(Objects.hash(name + "redstone"));
         redstonePlaced = true;
@@ -368,8 +376,8 @@ public class PistonPush extends BlackOutModule {
         }
     }
 
-    private Box getBox(BlockPos pos) {
-        return new Box(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
+    private AABB getBox(BlockPos pos) {
+        return new AABB(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1);
     }
 
     private void mineUpdate() {
@@ -381,10 +389,10 @@ public class PistonPush extends BlackOutModule {
             return;
         }
 
-        if (redstone.get() == Redstone.Torch && !(mc.world.getBlockState(redstonePos).getBlock() instanceof RedstoneTorchBlock)) {
+        if (redstone.get() == Redstone.Torch && !(mc.level.getBlockState(redstonePos).getBlock() instanceof RedstoneTorchBlock)) {
             return;
         }
-        if (redstone.get() == Redstone.Block && mc.world.getBlockState(redstonePos).getBlock() != Blocks.REDSTONE_BLOCK) {
+        if (redstone.get() == Redstone.Block && mc.level.getBlockState(redstonePos).getBlock() != Blocks.REDSTONE_BLOCK) {
             return;
         }
 
@@ -402,8 +410,8 @@ public class PistonPush extends BlackOutModule {
             Direction mineDir = SettingUtils.getPlaceOnDirection(redstonePos);
 
             if (mineDir != null) {
-                sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, redstonePos, mineDir));
-                sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK, redstonePos, mineDir));
+                sendPacket(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, redstonePos, mineDir));
+                sendPacket(new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK, redstonePos, mineDir));
             }
         }
 
@@ -416,35 +424,35 @@ public class PistonPush extends BlackOutModule {
     private void update() {
         pistonPos = null;
 
-        for (AbstractClientPlayerEntity player : mc.world.getPlayers()) {
+        for (AbstractClientPlayer player : mc.level.players()) {
 
             if (Friends.get().isFriend(player)) continue;
             if (player == mc.player) continue;
             if (mc.player.distanceTo(player) > 10) continue;
             if (player.getHealth() <= 0) continue;
             if (player.isSpectator()) continue;
-            if (!OLEPOSSUtils.solid2(player.getBlockPos()) && onlyHole.get() && HoleUtils.getHole(player.getBlockPos(), true, true, false, 1, true).type == HoleType.NotHole) return;
+            if (!OLEPOSSUtils.solid2(player.blockPosition()) && onlyHole.get() && HoleUtils.getHole(player.blockPosition(), true, true, false, 1, true).type == HoleType.NotHole) return;
 
             updatePos(player);
             if (pistonPos != null) return;
         }
     }
 
-    private void updatePos(PlayerEntity player) {
-        BlockPos eyePos = BlockPos.ofFloored(player.getEyePos());
+    private void updatePos(Player player) {
+        BlockPos eyePos = BlockPos.containing(player.getEyePosition());
 
-        if (OLEPOSSUtils.solid2(eyePos.up())) return;
+        if (OLEPOSSUtils.solid2(eyePos.above())) return;
 
-        for (Direction dir : Direction.Type.HORIZONTAL.stream().sorted(Comparator.comparingDouble(d -> eyePos.offset(d).toCenterPos().distanceTo(mc.player.getEyePos()))).toList()) {
+        for (Direction dir : Direction.Plane.HORIZONTAL.stream().sorted(Comparator.comparingDouble(d -> Vec3.atCenterOf(eyePos.relative(d)).distanceTo(mc.player.getEyePosition()))).toList()) {
             resetPos();
 
-            BlockPos pos = eyePos.offset(dir);
+            BlockPos pos = eyePos.relative(dir);
             if (!upCheck(pos)) continue;
 
-            if (!OLEPOSSUtils.replaceable(pos) && !(mc.world.getBlockState(pos).getBlock() instanceof PistonBlock) && mc.world.getBlockState(pos).getBlock() != Blocks.MOVING_PISTON) continue;
-            if (OLEPOSSUtils.solid2(eyePos.offset(dir.getOpposite()))) continue;
-            if (OLEPOSSUtils.solid2(eyePos.offset(dir.getOpposite()).up())) continue;
-            if (!OLEPOSSUtils.solid2(eyePos.offset(dir.getOpposite()).down())) continue;
+            if (!OLEPOSSUtils.replaceable(pos) && !(mc.level.getBlockState(pos).getBlock() instanceof PistonBaseBlock) && mc.level.getBlockState(pos).getBlock() != Blocks.MOVING_PISTON) continue;
+            if (OLEPOSSUtils.solid2(eyePos.relative(dir.getOpposite()))) continue;
+            if (OLEPOSSUtils.solid2(eyePos.relative(dir.getOpposite()).above())) continue;
+            if (!OLEPOSSUtils.solid2(eyePos.relative(dir.getOpposite()).below())) continue;
 
             PlaceData data = SettingUtils.getPlaceData(pos);
             if (data == null || !data.valid()) continue;
@@ -456,9 +464,9 @@ public class PistonPush extends BlackOutModule {
             if (redstonePos == null) continue;
 
             if (startPos == null) {
-                startPos = player.getBlockPos();
+                startPos = player.blockPosition();
             }
-            currentPos = player.getBlockPos();
+            currentPos = player.blockPosition();
             pistonPos = pos;
             return;
         }
@@ -466,17 +474,17 @@ public class PistonPush extends BlackOutModule {
 
     private void updateRedstone(BlockPos pos) {
         if (redstone.get() == Redstone.Torch) {
-            for (Direction direction : Arrays.stream(Direction.values()).sorted(Comparator.comparingDouble(i -> pos.offset(i).toCenterPos().distanceTo(mc.player.getEyePos()))).toList()) {
+            for (Direction direction : Arrays.stream(Direction.values()).sorted(Comparator.comparingDouble(i -> Vec3.atCenterOf(pos.relative(i)).distanceTo(mc.player.getEyePosition()))).toList()) {
                 if (direction == pistonDir.getOpposite() || direction == Direction.DOWN || direction == Direction.UP) continue;
 
-                BlockPos position = pos.offset(direction);
+                BlockPos position = pos.relative(direction);
 
-                if (!OLEPOSSUtils.replaceable(position) && !(mc.world.getBlockState(position).getBlock() instanceof RedstoneTorchBlock)) {
+                if (!OLEPOSSUtils.replaceable(position) && !(mc.level.getBlockState(position).getBlock() instanceof RedstoneTorchBlock)) {
                     continue;
                 }
 
                 redstoneData = SettingUtils.getPlaceDataAND(position, d -> {
-                    if (d == Direction.UP && !OLEPOSSUtils.solid(position.down())) {
+                    if (d == Direction.UP && !OLEPOSSUtils.solid(position.below())) {
                         return false;
                     }
                     return direction != d.getOpposite();
@@ -484,10 +492,10 @@ public class PistonPush extends BlackOutModule {
                     if (pos.equals(b)) {
                         return false;
                     }
-                    if (mc.world.getBlockState(b).getBlock() instanceof TorchBlock) {
+                    if (mc.level.getBlockState(b).getBlock() instanceof TorchBlock) {
                         return false;
                     }
-                    return !(mc.world.getBlockState(b).getBlock() instanceof PistonBlock) && !(mc.world.getBlockState(b).getBlock() instanceof PistonHeadBlock);
+                    return !(mc.level.getBlockState(b).getBlock() instanceof PistonBaseBlock) && !(mc.level.getBlockState(b).getBlock() instanceof PistonHeadBlock);
                 });
 
                 if (redstoneData.valid() && SettingUtils.inPlaceRange(redstoneData.pos()) && SettingUtils.inMineRange(position)) {
@@ -499,17 +507,17 @@ public class PistonPush extends BlackOutModule {
             return;
         }
 
-        for (Direction direction : Arrays.stream(Direction.values()).sorted(Comparator.comparingDouble(i -> pos.offset(i).toCenterPos().distanceTo(mc.player.getEyePos()))).toList()) {
+        for (Direction direction : Arrays.stream(Direction.values()).sorted(Comparator.comparingDouble(i -> Vec3.atCenterOf(pos.relative(i)).distanceTo(mc.player.getEyePosition()))).toList()) {
             if (direction == pistonDir.getOpposite() || direction == Direction.DOWN) {
                 continue;
             }
 
-            BlockPos position = pos.offset(direction);
+            BlockPos position = pos.relative(direction);
 
-            if (!OLEPOSSUtils.replaceable(position) && mc.world.getBlockState(position).getBlock() != Blocks.REDSTONE_BLOCK) {
+            if (!OLEPOSSUtils.replaceable(position) && mc.level.getBlockState(position).getBlock() != Blocks.REDSTONE_BLOCK) {
                 continue;
             }
-            if (EntityUtils.intersectsWithEntity(Box.from(new BlockBox(position)), entity -> !entity.isSpectator() && entity instanceof PlayerEntity)) {
+            if (EntityUtils.intersectsWithEntity(AABB.of(new BoundingBox(position)), entity -> !entity.isSpectator() && entity instanceof Player)) {
                 continue;
             }
 
@@ -524,19 +532,19 @@ public class PistonPush extends BlackOutModule {
     }
 
     private boolean upCheck(BlockPos pos) {
-        double dx = mc.player.getEyePos().x - pos.getX() - 0.5;
-        double dz = mc.player.getEyePos().z - pos.getZ() - 0.5;
+        double dx = mc.player.getEyePosition().x - pos.getX() - 0.5;
+        double dz = mc.player.getEyePosition().z - pos.getZ() - 0.5;
 
 
-        return Math.sqrt(dx * dx + dz * dz) > Math.abs(mc.player.getEyePos().y - pos.getY() - 0.5);
+        return Math.sqrt(dx * dx + dz * dz) > Math.abs(mc.player.getEyePosition().y - pos.getY() - 0.5);
     }
 
     private boolean isRedstone(BlockPos pos) {
-        return mc.world.getBlockState(pos).emitsRedstonePower();
+        return mc.level.getBlockState(pos).isSignalSource();
     }
 
     private boolean blocked(BlockPos pos) {
-        Block b = mc.world.getBlockState(pos).getBlock();
+        Block b = mc.level.getBlockState(pos).getBlock();
         if (b == Blocks.MOVING_PISTON) {
             return false;
         }
@@ -550,12 +558,12 @@ public class PistonPush extends BlackOutModule {
             return false;
         }
 
-        return !(mc.world.getBlockState(pos).getBlock() instanceof AirBlock);
+        return !(mc.level.getBlockState(pos).getBlock() instanceof AirBlock);
     }
 
-    private Hand getHand(Item item) {
-        return Managers.HOLDING.isHolding(item) ? Hand.MAIN_HAND :
-            mc.player.getOffHandStack().getItem() == item ? Hand.OFF_HAND :
+    private InteractionHand getHand(Item item) {
+        return Managers.HOLDING.isHolding(item) ? InteractionHand.MAIN_HAND :
+            mc.player.getOffhandItem().getItem() == item ? InteractionHand.OFF_HAND :
                 null;
     }
 
